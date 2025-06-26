@@ -5,12 +5,15 @@ import { useOrders } from "../OrdersContext";
 const OrderPage = () => {
         const { orders, setOrders } = useOrders();
         const navigate = useNavigate();
-
-        // Состояния для полей формы
         const [id, setId] = useState("");
         const [product, setProduct] = useState("");
         const [deadline, setDeadline] = useState("");
         const [progress, setProgress] = useState(0);
+        const [subId, setSubId] = useState("");
+        const [subProduct, setSubProduct] = useState("");
+        const [subDeadline, setSubDeadline] = useState("");
+        const [subProgress, setSubProgress] = useState(""); // если нужно % подзаказа
+
 
         const handleSubmit = (e) => {
             e.preventDefault();
@@ -21,7 +24,14 @@ const OrderPage = () => {
                 product,
                 deadline,
                 progress: Number(progress),
-                subOrders: [],
+                subOrders: [
+                    {
+                        id: subId,
+                        product: subProduct,
+                        deadline: subDeadline,
+                        progress: subProgress, // если есть
+                    }
+                ],
             },
             ]);
             navigate("/dashboard"); // редирект на таблицу
@@ -176,7 +186,10 @@ const OrderPage = () => {
           {/* Таблица */}
           <div className="flex justify-between mb-9">
             <div className="relative group">
-                <input placeholder="№ заказа" className="focus:outline-violet-600 bg-slate-800 border border-black rounded-[5px] h-11 px-4 text-stone-300 text-xl font-[Macondo_Swash_Caps]" />
+                <input placeholder="№ заказа" 
+                value={subId}
+                onChange={e => setSubId(e.target.value)}
+                className="focus:outline-violet-600 bg-slate-800 border border-black rounded-[5px] h-11 px-4 text-stone-300 text-xl font-[Macondo_Swash_Caps]" />
                 <div
                     className="
                     opacity-0 pointer-events-none
@@ -189,7 +202,10 @@ const OrderPage = () => {
                 </div>
             </div>
             <div className="relative group">
-                <input placeholder="Наименование" className="focus:outline-violet-600 bg-slate-800 border border-black rounded-[5px] h-11 px-4 text-stone-300 text-xl font-[Macondo_Swash_Caps]" />
+                <input placeholder="Наименование"
+                value={subProduct}
+                onChange={e => setSubProduct(e.target.value)}
+                className="focus:outline-violet-600 bg-slate-800 border border-black rounded-[5px] h-11 px-4 text-stone-300 text-xl font-[Macondo_Swash_Caps]" />
                 <div
                     className="
                     opacity-0 pointer-events-none
@@ -202,7 +218,10 @@ const OrderPage = () => {
                 </div>
             </div>
             <div className="relative group">
-                <input placeholder="Кол-во" className="focus:outline-violet-600 bg-slate-800 border border-black rounded-[5px] h-11 px-4 text-stone-300 text-xl font-[Macondo_Swash_Caps]" />
+                <input placeholder="Кол-во" 
+                value={subDeadline}
+                onChange={e => setSubDeadline(e.target.value)}
+                className="focus:outline-violet-600 bg-slate-800 border border-black rounded-[5px] h-11 px-4 text-stone-300 text-xl font-[Macondo_Swash_Caps]" />
                 <div
                     className="
                     opacity-0 pointer-events-none
