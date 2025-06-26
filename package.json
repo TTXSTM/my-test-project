@@ -4,7 +4,7 @@
   "version": "0.0.0",
   "type": "module",
   "scripts": {
-    "homepage": "https://wefin.github.io/my-test-project",
+    "homepage": "https://TTXSTM.github.io/my-test-project",
     "dev": "vite",
     "build": "vite build",
     "preview": "vite preview",
