@@ -3,6 +3,7 @@ import { OrdersProvider } from "./OrdersContext";
 import OrderPage from "./pages/OrderPage";
 import Dashboard from "./pages/Dashboard";
 import OrderTaskPage from "./pages/OrderTaskPage";
+import DispatcherPage from "./pages/DispatcherPage";
 import './App.css'
 
 function App() {
@@ -15,6 +16,7 @@ function App() {
             <Route path="/" element={<OrderPage />} />
             <Route path="/order/:taskId" element={<OrderTaskPage />} />
             <Route path="/dashboard" element={<Dashboard />} />
+            <Route path="/dispatcher" element={<DispatcherPage />} />
           </Routes>
         </Router>
       </OrdersProvider>

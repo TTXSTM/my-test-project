@@ -3,15 +3,125 @@ import { useOrders } from "../OrdersContext";
 import { Link } from "react-router-dom";
 
 export default function Dashboard() {
-  const { orders } = useOrders();
+  const { orders, setOrders } = useOrders();
   const [openedOrderIdx, setOpenedOrderIdx] = useState(null);
 
-  const toggleOrder = (idx) => {
-    setOpenedOrderIdx(openedOrderIdx === idx ? null : idx);
+  // Модальное окно для создания проекта
+  const [showCreateProject, setShowCreateProject] = useState(false);
+  const [newOrder, setNewOrder] = useState({ id: "", product: "", deadline: "", progress: 0, subOrders: [] });
+
+  // Модальное окно для создания подзаказа
+  const [showCreateSubOrder, setShowCreateSubOrder] = useState(false);
+  const [currentOrderIdx, setCurrentOrderIdx] = useState(null);
+  const [newSubOrder, setNewSubOrder] = useState({ id: "", product: "", deadline: "", progress: 0 });
+
+  const toggleOrder = (idx) => setOpenedOrderIdx(openedOrderIdx === idx ? null : idx);
+
+  // --- Создание проекта ---
+  const handleCreateOrder = (e) => {
+    e.preventDefault();
+    setOrders([
+      ...orders,
+      {
+        ...newOrder,
+        subOrders: []
+      }
+    ]);
+    setNewOrder({ id: "", product: "", deadline: "", progress: 0, subOrders: [] });
+    setShowCreateProject(false);
+  };
+
+  // --- Создание подзаказа ---
+  const handleCreateSubOrder = (e) => {
+    e.preventDefault();
+    setOrders((prevOrders) => {
+      return prevOrders.map((order, idx) =>
+        idx === currentOrderIdx
+          ? {
+              ...order,
+              subOrders: [...(order.subOrders || []), { ...newSubOrder }]
+            }
+          : order
+      );
+    });
+    setNewSubOrder({ id: "", product: "", deadline: "", progress: 0 });
+    setShowCreateSubOrder(false);
   };
 
   return (
     <div className="min-h-screen bg-gray-800 flex flex-col md:flex-row">
+      {/* Модальное окно создания проекта */}
+      {showCreateProject && (
+        <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50">
+          <form
+            onSubmit={handleCreateOrder}
+            className="bg-slate-900 p-8 rounded-xl w-[350px] flex flex-col gap-4 border-2 border-violet-500"
+          >
+            <h2 className="text-xl text-white mb-2">Создать проект</h2>
+            <input
+              placeholder="№ заказа"
+              className="rounded px-3 py-2 bg-slate-700 text-white"
+              value={newOrder.id}
+              onChange={e => setNewOrder(o => ({ ...o, id: e.target.value }))}
+              required
+            />
+            <input
+              placeholder="Наименование изделия"
+              className="rounded px-3 py-2 bg-slate-700 text-white"
+              value={newOrder.product}
+              onChange={e => setNewOrder(o => ({ ...o, product: e.target.value }))}
+              required
+            />
+            <input
+              type="datetime-local"
+              placeholder="Дедлайн"
+              className="rounded px-3 py-2 bg-slate-700 text-white"
+              value={newOrder.deadline}
+              onChange={e => setNewOrder(o => ({ ...o, deadline: e.target.value }))}
+              required
+            />
+            <button type="submit" className="bg-violet-700 hover:bg-violet-800 text-white rounded py-2 mt-2">Создать</button>
+            <button type="button" className="text-gray-400 hover:text-red-400 mt-1" onClick={() => setShowCreateProject(false)}>Отмена</button>
+          </form>
+        </div>
+      )}
+
+      {/* Модальное окно создания подзаказа */}
+      {showCreateSubOrder && (
+        <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50">
+          <form
+            onSubmit={handleCreateSubOrder}
+            className="bg-slate-900 p-8 rounded-xl w-[350px] flex flex-col gap-4 border-2 border-violet-500"
+          >
+            <h2 className="text-xl text-white mb-2">Создать подзаказ</h2>
+            <input
+              placeholder="№ подзаказа"
+              className="rounded px-3 py-2 bg-slate-700 text-white"
+              value={newSubOrder.id}
+              onChange={e => setNewSubOrder(o => ({ ...o, id: e.target.value }))}
+              required
+            />
+            <input
+              placeholder="Наименование"
+              className="rounded px-3 py-2 bg-slate-700 text-white"
+              value={newSubOrder.product}
+              onChange={e => setNewSubOrder(o => ({ ...o, product: e.target.value }))}
+              required
+            />
+            <input
+              type="number"
+              placeholder="Кол-во"
+              className="rounded px-3 py-2 bg-slate-700 text-white"
+              value={newSubOrder.deadline}
+              onChange={e => setNewSubOrder(o => ({ ...o, deadline: e.target.value }))}
+              required
+            />
+            <button type="submit" className="bg-violet-700 hover:bg-violet-800 text-white rounded py-2 mt-2">Создать</button>
+            <button type="button" className="text-gray-400 hover:text-red-400 mt-1" onClick={() => setShowCreateSubOrder(false)}>Отмена</button>
+          </form>
+        </div>
+      )}
+
       {/* Sidebar */}
       <aside className="w-full md:w-80 bg-slate-800 shadow-xl pt-6 px-3 flex-shrink-0 flex flex-col items-center">
         <button className="w-full h-9 bg-stone-500 text-white mb-6 text-sm font-['JejuGothic'] rounded hover:bg-stone-600 transition">
@@ -72,10 +182,11 @@ export default function Dashboard() {
                 </div>
               </div>
 
-              {/* Состав заказа (раскрывающийся блок) */}
-              {openedOrderIdx === idx && order.subOrders?.length > 0 && (
+              {/* Состав заказа (раскрывающийся блок) + кнопка создать подзаказ */}
+              {openedOrderIdx === idx && (
                 <div className="ml-0 md:ml-2 mt-1 space-y-1">
-                  {order.subOrders.map((sub, subIdx) => (
+                  {/* Кнопка создать подзаказ */}
+                  {order.subOrders?.map((sub, subIdx) => (
                     <div key={subIdx} className="flex gap-2 md:gap-4">
                       {/* № подзаказа */}
                       <Link
@@ -99,10 +210,25 @@ export default function Dashboard() {
                       </div>
                     </div>
                   ))}
+                  <button
+                    onClick={e => { e.stopPropagation(); setCurrentOrderIdx(idx); setShowCreateSubOrder(true); }}
+                    className="mb-2 bg-[#172027] hover:bg-violet-800 text-white px-4 py-1 text-sm"
+                  >
+                    + Создать подзаказ
+                  </button>
                 </div>
               )}
             </div>
           ))}
+        {/* Кнопка создать проект */}
+        <div className="flex justify-start mb-4">
+          <button
+            onClick={() => setShowCreateProject(true)}
+            className="bg-[#172027] hover:bg-violet-800 text-white px-6 py-2 text-lg font-['Inter'] shadow"
+          >
+            + Создать проект
+          </button>
+        </div>
         </div>
       </main>
     </div>

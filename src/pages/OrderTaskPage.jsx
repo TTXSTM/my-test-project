@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useState, useRef, useEffect } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 
 const mockData = {
@@ -6,7 +6,6 @@ const mockData = {
   order: "123-01",
   product: 'Качели "Солнышко"',
   rows: [
-    // ... примерные строки для таблицы
     {
       partNum: "6007005",
       name: "GT3-07.00.00.01",
@@ -18,7 +17,7 @@ const mockData = {
       status: "В работе",
       taskId: "600102"
     },
-    // ...ещё строки
+    // ...другие строки по желанию
   ]
 };
 
@@ -26,14 +25,53 @@ const OrderTaskPage = () => {
   const { taskId } = useParams();
   const navigate = useNavigate();
 
-  // Если надо, найди нужную строку по taskId из БД или массива
-  // const row = mockData.rows.find(r => r.taskId === taskId);
+  // Состояние для выпадающего меню
+  const [navOpen, setNavOpen] = useState(false);
+  const navRef = useRef();
+
+  // Закрытие меню при клике вне его
+  useEffect(() => {
+    const handleClickOutside = (e) => {
+      if (navRef.current && !navRef.current.contains(e.target)) {
+        setNavOpen(false);
+      }
+    };
+    if (navOpen) {
+      document.addEventListener("mousedown", handleClickOutside);
+    }
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, [navOpen]);
 
   return (
     <div className="w-screen min-h-screen bg-gray-800 text-white font-['JejuGothic'] relative">
       {/* Topbar */}
       <div className="w-full h-20 bg-gray-900 flex items-center px-10 justify-between fixed z-10">
-        <button className="w-44 h-9 bg-gray-700 text-white text-sm mb-2">Навигация</button>
+        {/* Кнопка навигации */}
+        <div className="relative" ref={navRef}>
+          <button
+            className="w-44 h-9 bg-gray-700 text-white text-sm mb-2 rounded hover:bg-gray-600 transition"
+            onClick={() => setNavOpen((prev) => !prev)}
+          >
+            Навигация
+          </button>
+          {navOpen && (
+            <div className="absolute left-0 top-10 bg-slate-900 border border-violet-700 rounded shadow-xl z-20 w-52 flex flex-col animate-fade-in">
+              <button
+                className="py-2 px-4 text-left hover:bg-violet-700 transition"
+                onClick={() => { navigate("/dispatcher"); setNavOpen(false); }}
+              >
+                Диспетчерская
+              </button>
+              <button
+                className="py-2 px-4 text-left hover:bg-violet-700 transition"
+                onClick={() => { navigate("/dashboard"); setNavOpen(false); }}
+              >
+                Проекты
+              </button>
+            </div>
+          )}
+        </div>
+        {/* Остальная часть топ-бара */}
         <div className="flex gap-10 ml-24">
           <a href="#" className="underline text-xl">Проекты</a>
           <a href="#" className="underline text-xl">Планирование</a>
