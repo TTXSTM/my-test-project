@@ -173,11 +173,28 @@ const OrderPage = () => {
 
   return (
     <div className="min-h-screen bg-gray-800 flex flex-col items-center pt-10">
+              <nav className="w-full max-w-5xl flex justify-center gap-10 mb-8">
+        {["Проекты", "Планирование", "Маршрутная карта", "Оборудование"].map((item, idx) => (
+          <a
+            key={idx}
+            href="/my-test-project/#/dashboard"
+            className="
+              text-white text-2xl font-normal font-[Inter]
+              transition duration-200
+              hover:text-violet-400
+              hover:scale-110
+              active:text-violet-600
+            "
+          >
+            {item}
+          </a>
+        ))}
+      </nav>
       <div className="w-full max-w-4xl bg-white rounded-tl-2xl rounded-tr-2xl shadow-xl p-10">
         <form onSubmit={handleSubmit}>
           <h1 className="text-center text-3xl font-bold mb-8 font-[Inter]">Заказ на производство</h1>
           <div className="flex flex-col gap-9">
-            <div className="flex gap-6">
+            <div className="flex gap-6 justify-between">
               <div className="relative group">
                 <input
                   placeholder="Номер проекта"
@@ -189,7 +206,7 @@ const OrderPage = () => {
                 {showError("id") && <div className="text-red-500 text-xs mt-1">{errors.id}</div>}
                 <div className="opacity-0 pointer-events-none absolute -top-8 left-0 bg-black text-white text-xs px-2 py-1 rounded shadow transition-all duration-200 z-10 group-hover:opacity-100">Номер проекта</div>
               </div>
-              <div className="flex-1 flex flex-col">
+              <div className="flex flex-col">
                 <div className="relative group w-full">
                   <input
                     placeholder="Плановый срок отгрузки"

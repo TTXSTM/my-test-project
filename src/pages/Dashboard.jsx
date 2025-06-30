@@ -1,5 +1,6 @@
 import React, { useState } from "react";
 import { useOrders } from "../OrdersContext";
+import { Link } from "react-router-dom";
 
 export default function Dashboard() {
   const { orders } = useOrders();
@@ -77,9 +78,12 @@ export default function Dashboard() {
                   {order.subOrders.map((sub, subIdx) => (
                     <div key={subIdx} className="flex gap-2 md:gap-4">
                       {/* № подзаказа */}
-                      <div className="flex-1 h-8 bg-slate-700 text-center flex items-center justify-center text-stone-300 text-base font-['JejuGothic'] ">
+                      <Link
+                        to={`/order/${sub.id}`}
+                        className="flex-1 h-8 bg-slate-700 text-center flex items-center justify-center text-indigo-200 text-base font-['JejuGothic'] underline hover:text-violet-400 transition"
+                      >
                         {sub.id}
-                      </div>
+                      </Link>
                       {/* Наименование */}
                       <div className="flex-[2] h-8 bg-slate-700 text-center flex items-center justify-center text-white text-base font-['Inter'] ">
                         {sub.product}
