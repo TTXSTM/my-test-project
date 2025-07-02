@@ -170,7 +170,6 @@ export default function Dashboard() {
                 </div>
 
                 {/* --- Раскрывающийся список (по желанию, можно убрать) --- */}
-                {/* 
                 {openedOrderIdx === idx && order.subOrders?.length > 0 && (
                   <div className="ml-0 md:ml-2 mt-1 space-y-1">
                     {order.subOrders.map((sub, subIdx) => (
@@ -196,7 +195,7 @@ export default function Dashboard() {
                     ))}
                   </div>
                 )}
-                */}
+               
               </div>
             ))}
 
