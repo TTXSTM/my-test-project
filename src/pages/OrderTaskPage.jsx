@@ -185,12 +185,6 @@ export default function OrderTaskPage() {
               >
                 Проекты
               </button>
-              <button
-                className="py-2 px-4 text-left cursor-pointer text-white hover:bg-violet-700 transition"
-                onClick={() => { navigate("/"); setNavOpen(false); }}
-              >
-                Главная
-              </button>
             </div>
           )}
         </div>

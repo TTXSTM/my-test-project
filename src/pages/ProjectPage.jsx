@@ -1,7 +1,7 @@
 import React, { useState, useRef, useEffect } from "react";
-import { useParams, useNavigate } from "react-router-dom";
+import { useParams, useNavigate, Link } from "react-router-dom";
 import { useOrders } from "../OrdersContext";
-import { Link } from "react-router-dom";
+import Sidebar from "../Sidebar"; 
 
 function getProgressColor(progress) {
   if (progress > 95) return "bg-gradient-to-r from-green-600 to-green-400";
@@ -15,7 +15,7 @@ export default function ProjectPage() {
   const navigate = useNavigate();
   const { orders, setOrders } = useOrders();
 
-  const orderIdx = orders.findIndex(o => o.id === id);
+  const orderIdx = orders.findIndex((o) => o.id === id);
   const order = orders[orderIdx];
 
   // Модалка для подзаказа
@@ -23,15 +23,16 @@ export default function ProjectPage() {
   const [newSubOrder, setNewSubOrder] = useState({
     id: "",
     product: "",
-    amount: "",
+    startDate: "",
+    deadline: "",
+    responsible: "",
     progress: 0,
   });
 
-  // Состояние для дропдауна навигации
+  // Навигация сайдбара
   const [navOpen, setNavOpen] = useState(false);
   const navRef = useRef();
 
-  // Закрытие дропдауна при клике вне его
   useEffect(() => {
     const handleClick = (e) => {
       if (navRef.current && !navRef.current.contains(e.target)) setNavOpen(false);
@@ -42,14 +43,24 @@ export default function ProjectPage() {
 
   const handleCreateSubOrder = (e) => {
     e.preventDefault();
-    setOrders(prevOrders =>
+    setOrders((prevOrders) =>
       prevOrders.map((ord, idx) =>
         idx === orderIdx
-          ? { ...ord, subOrders: [...(ord.subOrders || []), { ...newSubOrder }] }
+          ? {
+              ...ord,
+              subOrders: [...(ord.subOrders || []), { ...newSubOrder }],
+            }
           : ord
       )
     );
-    setNewSubOrder({ id: "", product: "", amount: "", progress: 0 });
+    setNewSubOrder({
+      id: "",
+      product: "",
+      startDate: "",
+      deadline: "",
+      responsible: "",
+      progress: 0,
+    });
     setShowCreateSubOrder(false);
   };
 
@@ -69,7 +80,7 @@ export default function ProjectPage() {
 
   return (
     <div className="min-h-screen bg-[#262537] flex flex-col md:flex-row">
-      {/* Модалка для подзаказа */}
+      {/* Модалка создания подзаказа */}
       {showCreateSubOrder && (
         <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50">
           <form
@@ -77,37 +88,77 @@ export default function ProjectPage() {
             className="bg-slate-900 p-8 rounded-xl w-[350px] flex flex-col gap-4 border-2 border-violet-500"
           >
             <h2 className="text-xl text-white mb-2">Создать подзаказ</h2>
-            <input
-              placeholder="№ подзаказа"
-              className="rounded px-3 py-2 bg-slate-700 text-white"
-              value={newSubOrder.id}
-              onChange={e => setNewSubOrder(o => ({ ...o, id: e.target.value }))}
-              required
-            />
-            <input
-              placeholder="Наименование"
-              className="rounded px-3 py-2 bg-slate-700 text-white"
-              value={newSubOrder.product}
-              onChange={e => setNewSubOrder(o => ({ ...o, product: e.target.value }))}
-              required
-            />
-            <input
-              placeholder="Кол-во"
-              className="rounded px-3 py-2 bg-slate-700 text-white"
-              value={newSubOrder.amount}
-              onChange={e => setNewSubOrder(o => ({ ...o, amount: e.target.value }))}
-              required
-            />
-            <input
-              type="number"
-              placeholder="Прогресс (%)"
-              className="rounded px-3 py-2 bg-slate-700 text-white"
-              value={newSubOrder.progress}
-              min={0}
-              max={100}
-              onChange={e => setNewSubOrder(o => ({ ...o, progress: e.target.value }))}
-              required
-            />
+            <label className="text-gray-200 text-sm font-semibold">
+              № заказа
+              <input
+                className="mt-1 rounded px-3 py-2 bg-slate-700 text-white w-full"
+                value={newSubOrder.id}
+                onChange={(e) =>
+                  setNewSubOrder((o) => ({ ...o, id: e.target.value }))
+                }
+                required
+              />
+            </label>
+            <label className="text-gray-200 text-sm font-semibold">
+              Наименование заказа
+              <input
+                className="mt-1 rounded px-3 py-2 bg-slate-700 text-white w-full"
+                value={newSubOrder.product}
+                onChange={(e) =>
+                  setNewSubOrder((o) => ({ ...o, product: e.target.value }))
+                }
+                required
+              />
+            </label>
+            <label className="text-gray-200 text-sm font-semibold">
+              Дата начала
+              <input
+                type="date"
+                className="mt-1 rounded px-3 py-2 bg-slate-700 text-white w-full"
+                value={newSubOrder.startDate}
+                onChange={(e) =>
+                  setNewSubOrder((o) => ({ ...o, startDate: e.target.value }))
+                }
+                required
+              />
+            </label>
+            <label className="text-gray-200 text-sm font-semibold">
+              Дедлай
+              <input
+                type="date"
+                className="mt-1 rounded px-3 py-2 bg-slate-700 text-white w-full"
+                value={newSubOrder.deadline}
+                onChange={(e) =>
+                  setNewSubOrder((o) => ({ ...o, deadline: e.target.value }))
+                }
+                required
+              />
+            </label>
+            <label className="text-gray-200 text-sm font-semibold">
+              Исполнитель
+              <input
+                className="mt-1 rounded px-3 py-2 bg-slate-700 text-white w-full"
+                value={newSubOrder.responsible}
+                onChange={(e) =>
+                  setNewSubOrder((o) => ({ ...o, responsible: e.target.value }))
+                }
+                required
+              />
+            </label>
+            <label className="text-gray-200 text-sm font-semibold">
+              Прогресс (%)
+              <input
+                type="number"
+                min={0}
+                max={100}
+                className="mt-1 rounded px-3 py-2 bg-slate-700 text-white w-full"
+                value={newSubOrder.progress}
+                onChange={(e) =>
+                  setNewSubOrder((o) => ({ ...o, progress: e.target.value }))
+                }
+                required
+              />
+            </label>
             <button
               type="submit"
               className="bg-violet-700 cursor-pointer hover:bg-violet-800 text-white rounded py-2 mt-2"
@@ -126,51 +177,7 @@ export default function ProjectPage() {
       )}
 
       {/* Sidebar */}
-      <aside className="w-full md:w-80 bg-[#323A44] flex-shrink-0 px-4 py-5 flex flex-col gap-6 min-h-screen">
-        {/* Выпадающая навигация */}
-        <div className="mb-4 relative" ref={navRef}>
-          <button
-            className="cursor-pointer bg-gradient-to-r from-purple-900 to-slate-800 rounded-lg px-3 py-2 text-white text-lg font-bold tracking-wide w-full text-left focus:outline-none"
-            onClick={() => setNavOpen(v => !v)}
-          >
-            Навигация
-          </button>
-          {navOpen && (
-            <div className="absolute left-0 top-12 bg-slate-900 border border-violet-700 rounded shadow-xl z-20 w-52 flex flex-col animate-fade-in">
-              <button
-                className="py-2 px-4 text-left cursor-pointer text-white hover:bg-violet-700 transition"
-                onClick={() => { navigate("/dispatcher"); setNavOpen(false); }}
-              >
-                Диспетчерская
-              </button>
-              <button
-                className="py-2 px-4 text-left cursor-pointer text-white hover:bg-violet-700 transition"
-                onClick={() => { navigate("/dashboard"); setNavOpen(false); }}
-              >
-                Проекты
-              </button>
-              <button
-                className="py-2 px-4 text-left cursor-pointer text-white hover:bg-violet-700 transition"
-                onClick={() => { navigate("/"); setNavOpen(false); }}
-              >
-                Главная
-              </button>
-            </div>
-          )}
-        </div>
-        <button className="bg-[#232833] cursor-pointer text-white rounded px-4 py-2 mb-3 hover:bg-[#293141] transition">
-          Поиск
-        </button>
-        <div className="w-full h-44 flex items-center justify-center bg-[#222832] rounded-lg mb-4">
-          <div className="w-32 h-32 rounded-full bg-gradient-to-tr from-green-600 via-blue-700 to-purple-900 flex items-center justify-center">
-            <div className="w-20 h-20 rounded-full bg-[#262537]" />
-          </div>
-        </div>
-        <div className="bg-purple-900 text-white px-3 py-2 rounded-lg mb-2 text-center">
-          Оперативный чат
-        </div>
-        <div className="flex-1" />
-      </aside>
+      <Sidebar navOpen={navOpen} setNavOpen={setNavOpen} />
 
       {/* Main content */}
       <main className="flex-1 py-12 px-2 md:px-8 bg-[#262537] min-h-screen">
@@ -205,33 +212,55 @@ export default function ProjectPage() {
           {/* Suborders Table */}
           <div>
             <h3 className="text-xl text-white mb-5 pl-2">Заказ на производство</h3>
+            {/* Заголовок таблицы */}
+            <div className="hidden md:flex font-semibold text-gray-300 bg-[#746487] rounded-t-md px-2 py-2 mb-1">
+              <div className="w-[130px] text-center">№ заказа</div>
+              <div className="w-[300px] text-center">Наименование заказа</div>
+              <div className="w-[160px] text-center">Дата начала</div>
+              <div className="w-[160px] text-center">Дедлай</div>
+              <div className="w-[160px] text-center">Исполнитель</div>
+              <div className="w-[120px] text-center">Прогресс</div>
+            </div>
             <div className="w-full flex flex-col gap-3">
               {order.subOrders && order.subOrders.length > 0 ? (
-                order.subOrders.map(sub => (
+                order.subOrders.map((sub) => (
                   <div
                     key={sub.id}
-                    className="flex flex-col md:flex-row gap-2 bg-[#2F3A43] rounded-md items-center"
+                    className="flex bg-[#2F3A43] rounded-md items-center mb-2"
+                    style={{ minHeight: 48 }}
                   >
-                    {/* № подзаказа */}
+                    {/* № заказа */}
                     <Link
                       to={`/order/${sub.id}`}
-                      className="flex items-center px-4 py-2 bg-[#49555E] text-white text-lg font-bold rounded-t-md md:rounded-t-none md:rounded-l-md min-w-[120px] md:min-w-[140px] font-['JejuGothic'] underline hover:text-violet-400"
+                      className="w-[130px] flex items-center justify-center px-2 py-2 bg-[#49555E] text-white text-base font-bold font-['JejuGothic'] underline hover:text-violet-400 truncate rounded-l-md"
+                      title={sub.id}
                     >
                       {sub.id}
                     </Link>
                     {/* Наименование */}
-                    <div className="flex-1 px-4 py-2 text-gray-100 text-lg font-['JejuGothic']">
+                    <div
+                      className="w-[300px] px-2 py-2 text-gray-100 text-base font-['JejuGothic'] truncate"
+                      title={sub.product}
+                    >
                       {sub.product}
                     </div>
-                    {/* Кол-во */}
-                    <div className="px-4 py-2 text-gray-300 text-lg font-['JejuGothic'] min-w-[140px]">
-                      {sub.amount || "2 КОМП-ТА"}
+                    {/* Дата начала */}
+                    <div className="w-[160px] px-2 py-2 text-gray-300 text-base truncate text-center" title={sub.startDate}>
+                      {sub.startDate || "-"}
+                    </div>
+                    {/* Дедлайн */}
+                    <div className="w-[160px] px-2 py-2 text-gray-300 text-base truncate text-center" title={sub.deadline}>
+                      {sub.deadline || "-"}
+                    </div>
+                    {/* Исполнитель */}
+                    <div className="w-[160px] px-2 py-2 text-gray-300 text-base truncate text-center" title={sub.responsible}>
+                      {sub.responsible || "-"}
                     </div>
                     {/* Прогресс */}
-                    <div className="flex items-center min-w-[160px] px-4 py-1">
-                      <div className={`h-8 w-full rounded-lg flex items-center justify-center ${getProgressColor(Number(sub.progress ?? 80))}`}>
-                        <span className="text-white text-xl font-semibold tracking-wide shadow-black drop-shadow">
-                          {sub.progress ?? 80}%
+                    <div className="w-[120px] flex items-center px-2 py-1 justify-center">
+                      <div className={`h-8 w-full rounded-lg flex items-center justify-center ${getProgressColor(Number(sub.progress ?? 0))}`}>
+                        <span className="text-white text-lg font-semibold tracking-wide shadow-black drop-shadow">
+                          {sub.progress ?? 0}%
                         </span>
                       </div>
                     </div>

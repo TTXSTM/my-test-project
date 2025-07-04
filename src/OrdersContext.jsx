@@ -10,10 +10,19 @@ export function OrdersProvider({ children }) {
     {
       id: "123",
       product: "Обустройство детской площадки",
+      startDate: "2023-06-19",
       deadline: "27.06.2025",
+      responsible: "Серега",
       progress: 93,
+      status: "В работе",
       subOrders: [
-        { id: "123-01", product: "Качели “Солнышко”", progress: 80, deadline: "2 КОМП-ТА" },
+        { id: "123-01",
+          product: "Качели “Солнышко“",
+          startDate: "04.07.2025",
+          deadline: "05.07.2025",
+          responsible: "Серега",
+          progress: 80, 
+        },
       ],
     },
   ]);
