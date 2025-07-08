@@ -109,7 +109,7 @@ export default function ProjectPage() {
       : 0;
 
   return (
-    <div className="min-h-screen bg-[#262537] flex flex-col md:flex-row font-['Jeju_Gothic']">
+    <div className="min-h-screen bg-[#262537] flex flex-col md:flex-row font-['Inter']">
       {/* Sidebar с пайчартом и рабочей навигацией */}
       <Sidebar
         navOpen={navOpen}
@@ -123,7 +123,7 @@ export default function ProjectPage() {
           <form
             onSubmit={handleCreateSubOrder}
             className="bg-[#1c1a29] border-2 border-violet-500 rounded-2xl px-7 py-8 w-[370px] flex flex-col gap-4 shadow-2xl"
-            style={{ fontFamily: "Jeju Gothic, sans-serif" }}
+            style={{ fontFamily: "Inter, sans-serif" }}
           >
             <h2 className="text-xl text-white font-semibold mb-1">
               Добавить подзаказ
@@ -325,7 +325,7 @@ export default function ProjectPage() {
           {/* --- Заголовок --- */}
           <div
             className="text-[27px] text-white font-medium mb-6 ml-2 tracking-wide"
-            style={{ fontFamily: "Jeju Gothic, sans-serif" }}
+            style={{ fontFamily: "Inter, sans-serif" }}
           >
             Заказ на производство
           </div>
@@ -379,7 +379,7 @@ export default function ProjectPage() {
                       style={{
                         width: columns[1].w,
                         height: "100%",
-                        fontFamily: "Jeju Gothic, sans-serif",
+                        fontFamily: "Inter, sans-serif",
                       }}
                     >
                       {sub.product}

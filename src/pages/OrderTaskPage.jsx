@@ -347,7 +347,7 @@ export default function OrderTaskPage() {
   }, [mainRows, uploadedBatches, taskId, setOrders]);
 
   return (
-    <div className="min-h-screen w-screen bg-[#262537] font-['JejuGothic'] flex flex-row" style={{ userSelect: dragGlobal.active ? 'none' : 'auto' }}>
+    <div className="min-h-screen w-screen bg-[#262537] font-['Inter'] flex flex-row" style={{ userSelect: dragGlobal.active ? 'none' : 'auto' }}>
         {/* ... SIDEBAR ... */}
       <Sidebar
               navOpen={navOpen}

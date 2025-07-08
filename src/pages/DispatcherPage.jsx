@@ -36,7 +36,7 @@ const columns = [
 
 export default function DispatcherPage() {
   return (
-    <div className="min-h-screen w-screen bg-gray-800 font-['JejuGothic'] flex flex-row">
+    <div className="min-h-screen w-screen bg-gray-800 font-['Inter'] flex flex-row">
       {/* Левая панель */}
       <aside className="relative w-72 min-w-[256px] h-screen bg-[#1c232a] flex flex-col items-center py-0 px-0">
         {/* Навигация */}

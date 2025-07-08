@@ -201,7 +201,7 @@ const OrderPage = () => {
                   value={id}
                   onChange={handleChange(setId, "id")}
                   onBlur={() => handleTouched("id")}
-                  className="focus:outline-violet-600 bg-slate-800 border border-black rounded-[5px] h-11 px-4 text-stone-300 text-xl font-[Macondo_Swash_Caps] w-full"
+                  className="focus:outline-violet-600 bg-slate-800 border border-black rounded-[5px] h-11 px-4 text-stone-300 text-xl font-[Inter] w-full"
                 />
                 {showError("id") && <div className="text-red-500 text-xs mt-1">{errors.id}</div>}
                 <div className="opacity-0 pointer-events-none absolute -top-8 left-0 bg-black text-white text-xs px-2 py-1 rounded shadow transition-all duration-200 z-10 group-hover:opacity-100">Номер проекта</div>
@@ -214,7 +214,7 @@ const OrderPage = () => {
                     value={deadline}
                     onChange={handleChange(setDeadline, "deadline")}
                     onBlur={() => handleTouched("deadline")}
-                    className="focus:outline-violet-600 bg-slate-800 border border-black rounded-[5px] h-11 px-4 text-stone-300 text-xl font-[Macondo_Swash_Caps] w-full"
+                    className="focus:outline-violet-600 bg-slate-800 border border-black rounded-[5px] h-11 px-4 text-stone-300 text-xl font-[Inter] w-full"
                   />
                   {showError("deadline") && <div className="text-red-500 text-xs mt-1">{errors.deadline}</div>}
                   <div className="opacity-0 pointer-events-none absolute -top-8 left-0 bg-black text-white text-xs px-2 py-1 rounded shadow transition-all duration-200 z-10 group-hover:opacity-100">Плановый срок отгрузки</div>
@@ -228,7 +228,7 @@ const OrderPage = () => {
                   value={product}
                   onChange={handleChange(setProduct, "product")}
                   onBlur={() => handleTouched("product")}
-                  className="focus:outline-violet-600 bg-slate-800 border border-black rounded-[5px] h-14 w-full px-4 text-stone-300 text-xl font-[Macondo_Swash_Caps]"
+                  className="focus:outline-violet-600 bg-slate-800 border border-black rounded-[5px] h-14 w-full px-4 text-stone-300 text-xl font-[Inter]"
                 />
                 {showError("product") && <div className="text-red-500 text-xs mt-1">{errors.product}</div>}
                 <div className="opacity-0 pointer-events-none absolute -top-8 left-0 bg-black text-white text-xs px-2 py-1 rounded shadow transition-all duration-200 z-10 group-hover:opacity-100">Наименование изделия</div>
@@ -241,7 +241,7 @@ const OrderPage = () => {
                   value={customer}
                   onChange={handleChange(setCustomer, "customer")}
                   onBlur={() => handleTouched("customer")}
-                  className="focus:outline-violet-600 bg-slate-800 border border-black rounded-[5px] h-14 w-full px-4 text-stone-300 text-xl font-[Macondo_Swash_Caps]"
+                  className="focus:outline-violet-600 bg-slate-800 border border-black rounded-[5px] h-14 w-full px-4 text-stone-300 text-xl font-[Inter]"
                 />
                 {showError("customer") && <div className="text-red-500 text-xs mt-1">{errors.customer}</div>}
                 <div className="opacity-0 pointer-events-none absolute -top-8 left-0 bg-black text-white text-xs px-2 py-1 rounded shadow transition-all duration-200 z-10 group-hover:opacity-100">Заказчик</div>
@@ -254,7 +254,7 @@ const OrderPage = () => {
                   value={address}
                   onChange={handleChange(setAddress, "address")}
                   onBlur={() => handleTouched("address")}
-                  className="focus:outline-violet-600 bg-slate-800 border border-black rounded-[5px] h-14 w-full px-4 text-stone-300 text-xl font-[Macondo_Swash_Caps]"
+                  className="focus:outline-violet-600 bg-slate-800 border border-black rounded-[5px] h-14 w-full px-4 text-stone-300 text-xl font-[Inter]"
                 />
                 {showError("address") && <div className="text-red-500 text-xs mt-1">{errors.address}</div>}
                 <div className="opacity-0 pointer-events-none absolute -top-8 left-0 bg-black text-white text-xs px-2 py-1 rounded shadow transition-all duration-200 z-10 group-hover:opacity-100">Адрес объекта</div>
@@ -267,7 +267,7 @@ const OrderPage = () => {
                   value={responsible}
                   onChange={handleChange(setResponsible, "responsible")}
                   onBlur={() => handleTouched("responsible")}
-                  className="focus:outline-violet-600 bg-slate-800 border border-black rounded-[5px] h-11 flex-1 px-4 text-stone-300 text-xl font-[Macondo_Swash_Caps]"
+                  className="focus:outline-violet-600 bg-slate-800 border border-black rounded-[5px] h-11 flex-1 px-4 text-stone-300 text-xl font-[Inter]"
                 />
                 {showError("responsible") && <div className="text-red-500 text-xs mt-1">{errors.responsible}</div>}
                 <div className="opacity-0 pointer-events-none absolute -top-8 left-0 bg-black text-white text-xs px-2 py-1 rounded shadow transition-all duration-200 z-10 group-hover:opacity-100">Ответственный</div>
@@ -278,7 +278,7 @@ const OrderPage = () => {
                   value={executor}
                   onChange={handleChange(setExecutor, "executor")}
                   onBlur={() => handleTouched("executor")}
-                  className="focus:outline-violet-600 bg-slate-800 border border-black rounded-[5px] h-11 flex-1 px-4 text-white text-xl font-[Macondo_Swash_Caps]"
+                  className="focus:outline-violet-600 bg-slate-800 border border-black rounded-[5px] h-11 flex-1 px-4 text-white text-xl font-[Inter]"
                 />
                 {showError("executor") && <div className="text-red-500 text-xs mt-1">{errors.executor}</div>}
                 <div className="opacity-0 pointer-events-none absolute -top-8 left-0 bg-black text-white text-xs px-2 py-1 rounded shadow transition-all duration-200 z-10 group-hover:opacity-100">Исполнитель</div>
@@ -289,8 +289,8 @@ const OrderPage = () => {
           {/* Состав заказа */}
           <h2 className="text-center text-2xl font-bold mt-12 mb-6 font-[Inter]">Состав заказа</h2>
           <div className="flex gap-6 mb-9">
-            <input placeholder="Загрузить файл таблицы" className="focus:outline-violet-600 bg-slate-800 border border-black rounded-[5px] h-14 flex-1 px-4 text-stone-300 text-xl font-[Macondo_Swash_Caps]" />
-            <button type="button" className="bg-slate-800 rounded-[5px] h-14 px-8 text-stone-300 text-xl font-[Macondo_Swash_Caps]">Загрузить</button>
+            <input placeholder="Загрузить файл таблицы" className="focus:outline-violet-600 bg-slate-800 border border-black rounded-[5px] h-14 flex-1 px-4 text-stone-300 text-xl font-[Inter]" />
+            <button type="button" className="bg-slate-800 rounded-[5px] h-14 px-8 text-stone-300 text-xl font-[Inter]">Загрузить</button>
           </div>
           <div className="flex justify-between mb-9">
             <div className="relative group">
@@ -299,7 +299,7 @@ const OrderPage = () => {
                 value={subId}
                 onChange={handleChange(setSubId, "subId")}
                 onBlur={() => handleTouched("subId")}
-                className="focus:outline-violet-600 bg-slate-800 border border-black rounded-[5px] h-11 px-4 text-stone-300 text-xl font-[Macondo_Swash_Caps]"
+                className="focus:outline-violet-600 bg-slate-800 border border-black rounded-[5px] h-11 px-4 text-stone-300 text-xl font-[Inter]"
               />
               {showError("subId") && <div className="text-red-500 text-xs mt-1">{errors.subId}</div>}
               <div className="opacity-0 pointer-events-none absolute -top-8 left-0 bg-black text-white text-xs px-2 py-1 rounded shadow transition-all duration-200 z-10 group-hover:opacity-100">№ заказа</div>
@@ -310,7 +310,7 @@ const OrderPage = () => {
                 value={subProduct}
                 onChange={handleChange(setSubProduct, "subProduct")}
                 onBlur={() => handleTouched("subProduct")}
-                className="focus:outline-violet-600 bg-slate-800 border border-black rounded-[5px] h-11 px-4 text-stone-300 text-xl font-[Macondo_Swash_Caps]"
+                className="focus:outline-violet-600 bg-slate-800 border border-black rounded-[5px] h-11 px-4 text-stone-300 text-xl font-[Inter]"
               />
               {showError("subProduct") && <div className="text-red-500 text-xs mt-1">{errors.subProduct}</div>}
               <div className="opacity-0 pointer-events-none absolute -top-8 left-0 bg-black text-white text-xs px-2 py-1 rounded shadow transition-all duration-200 z-10 group-hover:opacity-100">Наименование</div>
@@ -321,7 +321,7 @@ const OrderPage = () => {
                 value={subDeadline}
                 onChange={handleChange(setSubDeadline, "subDeadline")}
                 onBlur={() => handleTouched("subDeadline")}
-                className="focus:outline-violet-600 bg-slate-800 border border-black rounded-[5px] h-11 px-4 text-stone-300 text-xl font-[Macondo_Swash_Caps]"
+                className="focus:outline-violet-600 bg-slate-800 border border-black rounded-[5px] h-11 px-4 text-stone-300 text-xl font-[Inter]"
               />
               {showError("subDeadline") && <div className="text-red-500 text-xs mt-1">{errors.subDeadline}</div>}
               <div className="opacity-0 pointer-events-none absolute -top-8 left-0 bg-black text-white text-xs px-2 py-1 rounded shadow transition-all duration-200 z-10 group-hover:opacity-100">Кол-во</div>
