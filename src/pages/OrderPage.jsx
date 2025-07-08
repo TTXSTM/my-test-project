@@ -1,7 +1,33 @@
 import React from "react";
+import { useNavigate } from "react-router-dom";
+import { useOrders } from "../OrdersContext";
 
-const OrderPage = () => {
-    return (
+export default function OrderPage() {
+  const { orders, setOrders } = useOrders();
+  const navigate = useNavigate();
+
+  // Состояния для полей формы
+  const [id, setId] = useState("");
+  const [product, setProduct] = useState("");
+  const [deadline, setDeadline] = useState("");
+  const [progress, setProgress] = useState(0);
+
+  const handleSubmit = (e) => {
+    e.preventDefault();
+    setOrders([
+      ...orders,
+      {
+        id,
+        product,
+        deadline,
+        progress: Number(progress),
+        subOrders: [],
+      },
+    ]);
+    navigate("/dashboard"); // редирект на таблицу
+  };
+
+  return (
     <div className="min-h-screen bg-gray-800 flex flex-col items-center pt-10">
       {/* Top menu */}
       <nav className="w-full max-w-5xl flex justify-center gap-10 mb-8">
@@ -24,13 +50,15 @@ const OrderPage = () => {
 
       {/* Form Card */}
       <div className="w-full max-w-4xl bg-white rounded-tl-2xl rounded-tr-2xl shadow-xl p-10">
-        <form>
+        <form onSubmit={handleSubmit}>
           <h1 className="text-center text-3xl font-bold mb-8 font-[Inter]">Заказ на производство</h1>
           <div className="flex flex-col gap-9">
             <div className="flex gap-6">
               <div className="relative group">
                 <input
                     placeholder="Номер проекта"
+                    value={id}
+                    onChange={e => setId(e.target.value)}
                     className="focus:outline-violet-600 bg-slate-800 border border-black rounded-[5px] h-11 px-4 text-stone-300 text-xl font-[Macondo_Swash_Caps] w-full"
                 />
                 <div
@@ -48,6 +76,8 @@ const OrderPage = () => {
                 <div className="relative group w-full">
                 <input
                     placeholder="Плановый срок отгрузки"
+                    value={deadline}
+                    onChange={e => setDeadline(e.target.value)}
                     className=" focus:outline-violet-600 bg-slate-800 border border-black rounded-[5px] h-11 px-4 text-stone-300 text-xl font-[Macondo_Swash_Caps] w-full"
                 />
                 <div
@@ -65,7 +95,10 @@ const OrderPage = () => {
             </div>
             <div>
                 <div className="relative group">
-                    <input placeholder="Наименование изделия" className=" focus:outline-violet-600 bg-slate-800 border border-black rounded-[5px] h-14 w-full px-4 text-stone-300 text-xl font-[Macondo_Swash_Caps]" />
+                    <input placeholder="Наименование изделия"
+                    value={product}
+                    onChange={e => setProduct(e.target.value)}
+                    className=" focus:outline-violet-600 bg-slate-800 border border-black rounded-[5px] h-14 w-full px-4 text-stone-300 text-xl font-[Macondo_Swash_Caps]" />
                     <div
                     className="
                     opacity-0 pointer-events-none
@@ -210,4 +243,3 @@ const OrderPage = () => {
   );
 };
 
-export default OrderPage;
