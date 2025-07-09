@@ -366,11 +366,11 @@ export default function OrderTaskPage() {
           <table className="min-w-[900px] w-full table-fixed border-separate border-spacing-0">
             <thead>
               <tr>
-                <th className="px-2 py-3 border-b border-gray-700 bg-[#23293B] text-white text-sm font-semibold text-left whitespace-nowrap">П.Н детали</th>
-                <th className="px-2 py-3 border-b border-gray-700 bg-[#23293B] text-white text-sm font-semibold text-left whitespace-nowrap">Наименование</th>
-                <th className="px-2 py-3 border-b border-gray-700 bg-[#23293B] text-white text-sm font-semibold text-left whitespace-nowrap">Обозначение</th>
-                <th className="px-2 py-3 border-b border-gray-700 bg-[#23293B] text-white text-sm font-semibold text-left whitespace-nowrap">Материал</th>
-                <th className="px-1 py-3 border-b border-gray-700 bg-[#23293B] text-white text-sm font-semibold text-center">Кол-во<br />по зад.</th>
+                <th className="px-2 py-3 border-b border-gray-700 bg-[#23293B] text-white text-sm font-semibold text-center whitespace-nowrap">П.Н детали</th>
+                <th className="px-2 py-3 border-b border-gray-700 bg-[#23293B] text-white text-sm font-semibold text-center whitespace-nowrap">Наименование</th>
+                <th className="px-2 py-3 border-b border-gray-700 bg-[#23293B] text-white text-sm font-semibold text-center whitespace-nowrap">Обозначение</th>
+                <th className="px-2 py-3 border-b border-gray-700 bg-[#23293B] text-white text-sm font-semibold text-center whitespace-nowrap">Материал</th>
+                <th className="px-1 py-3 border-b border-gray-700 bg-[#23293B] text-white text-sm font-semibold text-center">Кол-во по зад.</th>
                 <th className="px-1 py-3 border-b border-gray-700 bg-[#23293B] text-white text-sm font-semibold text-center">Изготовил</th>
                 <th className="px-1 py-3 border-b border-gray-700 bg-[#23293B] text-white text-sm font-semibold text-center">Маршрут</th>
                 <th className="px-1 py-3 border-b border-gray-700 bg-[#23293B] text-white text-sm font-semibold text-center">Статус</th>

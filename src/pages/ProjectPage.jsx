@@ -87,7 +87,7 @@ export default function ProjectPage() {
     );
   }
 
-  const cellHeight = 46;
+  const cellHeight = 25;
   const columns = [
     { title: "№ заказа", w: 130 },
     { title: "Наименование заказа", w: 320 },
