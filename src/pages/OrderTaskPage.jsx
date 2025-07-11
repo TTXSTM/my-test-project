@@ -22,25 +22,7 @@ const MARSHRUTS = [
   ]},
 ];
 
-const initialMockRows = Array.from({ length: 12 }).map((_, i) => ({
-  partNum: "6007005",
-  name: "GT3-07.00.00.01",
-  code: "Труба 30х30х2",
-  material: "3х1250х2500 ГОСТ 19904-90 II-Ст3Сп ГОСТ 535-2005",
-  count: "23",
-  made: "",
-  cell: "-",
-  status: "В работе",
-  taskId: "600102"
-}));
-
-const mockData = {
-  project: "123",
-  order: "123-01",
-  product: 'Качели "Солнышко"',
-};
-
-// === УТИЛИТА для вычисления процента готовности
+// === Прогресс
 function calcSubOrderProgress(mainRows, uploadedBatches) {
   let total = 0, ready = 0;
   for (const row of mainRows) {
@@ -60,34 +42,30 @@ function calcSubOrderProgress(mainRows, uploadedBatches) {
 export default function OrderTaskPage() {
   const { taskId } = useParams();
   const navigate = useNavigate();
-
-  // Подключаем OrdersContext
   const { orders, setOrders } = useOrders();
 
-  const [mainRows, setMainRows] = useState(initialMockRows);
+  // === Найти проект и подзаказ ===
+  const project = orders.find(order =>
+    order.subOrders && order.subOrders.some(sub => sub.id === taskId)
+  );
+  const subOrder = project
+    ? project.subOrders.find(sub => sub.id === taskId)
+    : null;
+
+  // Таблица и батчи (batch — если будешь поддерживать множественные xlsx, иначе mainRows)
+  const [mainRows, setMainRows] = useState([]);
   const [uploadedBatches, setUploadedBatches] = useState([]);
   const fileInputRef = useRef();
 
-  // === DRAG-FILL ГЛОБАЛЬНЫЙ (main + batch)
+  // DRAG-FILL
   const [dragGlobal, setDragGlobal] = useState({
     active: false,
-    from: null, // { type: 'main'|'batch', batchIdx, rowIdx }
+    from: null,
     to: null,
     value: null,
   });
 
-  // === Навигация
-  const [navOpen, setNavOpen] = useState(false);
-  const navRef = useRef();
-  useEffect(() => {
-    const handleClick = (e) => {
-      if (navRef.current && !navRef.current.contains(e.target)) setNavOpen(false);
-    };
-    if (navOpen) document.addEventListener("mousedown", handleClick);
-    return () => document.removeEventListener("mousedown", handleClick);
-  }, [navOpen]);
-
-  // === Загрузка спецификации .xlsx
+  // === XLSX загрузка ===
   function findCol(headerArr, variants) {
     for (let i = 0; i < headerArr.length; ++i) {
       const val = String(headerArr[i]).trim().toLowerCase();
@@ -114,9 +92,10 @@ export default function OrderTaskPage() {
         code: findCol(header, ["обозна", "код"]),
         material: findCol(header, ["матер"]),
         count: findCol(header, ["кол-во", "количество"]),
+        taskId: findCol(header, ["задание", "id задания"]),
       };
 
-      if (Object.values(colIdx).some(idx => idx === -1)) {
+      if (Object.values(colIdx).slice(0, 5).some(idx => idx === -1)) {
         alert("Некорректная спецификация: не найдены все нужные столбцы.\nПроверьте заголовки!");
         return;
       }
@@ -131,30 +110,18 @@ export default function OrderTaskPage() {
           count: row[colIdx.count] || "",
           made: "",
           cell: "-",
-          status: "",
-          taskId: "",
+          status: "В работе",
+          taskId: colIdx.taskId !== -1 ? row[colIdx.taskId] : "",
         }));
 
-      const now = new Date();
-      const timeLabel = now.toLocaleString("ru-RU", {
-        day: "2-digit", month: "2-digit", year: "2-digit", hour: "2-digit", minute: "2-digit"
-      });
-
-      setUploadedBatches(batches => [
-        ...batches,
-        {
-          date: timeLabel,
-          file: file.name,
-          uploader: uploaderFio,
-          rows: newRows
-        }
-      ]);
+      setMainRows(newRows);
+      setUploadedBatches([]); // не используем батчи (если не нужно)
       e.target.value = '';
     };
     reader.readAsArrayBuffer(file);
   };
 
-  // === Статусы/изготовил
+  // === Изменения в таблице (mainRows)
   function handleRowEditMain(rowIdx, field, value) {
     setMainRows(prev => prev.map((row, idx) => {
       let newRow = idx === rowIdx ? { ...row, [field]: value } : row;
@@ -168,33 +135,12 @@ export default function OrderTaskPage() {
       return newRow;
     }));
   }
-  function handleRowEditBatch(batchIdx, rowIdx, field, value) {
-    setUploadedBatches(prev =>
-      prev.map((batch, bidx) => bidx !== batchIdx
-        ? batch
-        : {
-          ...batch,
-          rows: batch.rows.map((row, ridx) => {
-            let newRow = ridx === rowIdx ? { ...row, [field]: value } : row;
-            if (ridx === rowIdx && field === "made" && value !== undefined) {
-              if (String(value) === String(row.count)) newRow.status = "Готово";
-              else if (row.status === "Готово") newRow.status = "";
-            }
-            if (ridx === rowIdx && field === "status" && value === "Готово") {
-              newRow.made = row.count;
-            }
-            return newRow;
-          })
-        }
-      )
-    );
-  }
 
-  // === Маршрут, модалки
+  // === Маршрут (выбор/drag-fill)
   const [routeSelectOpen, setRouteSelectOpen] = useState(false);
   const [selectedRoute, setSelectedRoute] = useState(null);
   const [showStations, setShowStations] = useState(false);
-  const [clicked, setClicked] = useState(null); // {type:'main'|'batch', batchIdx, rowIdx}
+  const [clicked, setClicked] = useState(null);
 
   function handleCellClick(type, batchIdx, rowIdx) {
     setClicked({ type, batchIdx, rowIdx });
@@ -215,21 +161,6 @@ export default function OrderTaskPage() {
               : row
           )
         );
-      } else if (clicked.type === 'batch') {
-        setUploadedBatches(prev =>
-          prev.map((batch, bidx) =>
-            bidx !== clicked.batchIdx
-              ? batch
-              : {
-                ...batch,
-                rows: batch.rows.map((row, ridx) =>
-                  ridx === clicked.rowIdx
-                    ? { ...row, cell: selectedRoute.id === 1 ? "МЛМ-1" : "МЛМ-2" }
-                    : row
-                )
-              }
-          )
-        );
       }
     }
     setShowStations(false);
@@ -237,7 +168,7 @@ export default function OrderTaskPage() {
     setClicked(null);
   }
 
-  // === DRAG-FILL ГЛОБАЛЬНО (main <-> batch)
+  // DRAG-FILL реализация
   function handleGlobalDragStart(type, batchIdx, rowIdx, value, e) {
     e.stopPropagation();
     setDragGlobal({
@@ -259,13 +190,8 @@ export default function OrderTaskPage() {
   useEffect(() => {
     function handleMouseUp() {
       if (dragGlobal.active && dragGlobal.from && dragGlobal.to && dragGlobal.value !== null) {
-        // Виртуальная таблица: mainRows + batchRows подряд
-        const allRows = [
-          ...mainRows.map((row, idx) => ({ type: 'main', batchIdx: null, rowIdx: idx })),
-          ...uploadedBatches.flatMap((batch, bidx) =>
-            batch.rows.map((row, ridx) => ({ type: 'batch', batchIdx: bidx, rowIdx: ridx }))
-          ),
-        ];
+        // только mainRows
+        const allRows = mainRows.map((row, idx) => ({ type: 'main', batchIdx: null, rowIdx: idx }));
         const startIdx = allRows.findIndex(
           r => r.type === dragGlobal.from.type &&
                r.batchIdx === dragGlobal.from.batchIdx &&
@@ -283,17 +209,11 @@ export default function OrderTaskPage() {
         }
         const [fromIdx, toIdx] = [startIdx, endIdx].sort((a, b) => a - b);
         let newMainRows = [...mainRows];
-        let newBatches = uploadedBatches.map(batch => ({ ...batch, rows: [...batch.rows] }));
         for (let i = fromIdx; i <= toIdx; ++i) {
           const r = allRows[i];
-          if (r.type === 'main') {
-            newMainRows[r.rowIdx] = { ...newMainRows[r.rowIdx], cell: dragGlobal.value };
-          } else if (r.type === 'batch') {
-            newBatches[r.batchIdx].rows[r.rowIdx] = { ...newBatches[r.batchIdx].rows[r.rowIdx], cell: dragGlobal.value };
-          }
+          newMainRows[r.rowIdx] = { ...newMainRows[r.rowIdx], cell: dragGlobal.value };
         }
         setMainRows(newMainRows);
-        setUploadedBatches(newBatches);
       }
       setDragGlobal({ active: false, from: null, to: null, value: null });
       document.body.style.userSelect = "";
@@ -302,17 +222,11 @@ export default function OrderTaskPage() {
       window.addEventListener("mouseup", handleMouseUp);
       return () => window.removeEventListener("mouseup", handleMouseUp);
     }
-  }, [dragGlobal, mainRows, uploadedBatches]);
+  }, [dragGlobal, mainRows]);
 
-  // === Подсветка диапазона drag-fill
   function isGlobalDragHighlighted(type, batchIdx, rowIdx) {
     if (!dragGlobal.active || !dragGlobal.from || !dragGlobal.to) return false;
-    const allRows = [
-      ...mainRows.map((row, idx) => ({ type: 'main', batchIdx: null, rowIdx: idx })),
-      ...uploadedBatches.flatMap((batch, bidx) =>
-        batch.rows.map((row, ridx) => ({ type: 'batch', batchIdx: bidx, rowIdx: ridx }))
-      ),
-    ];
+    const allRows = mainRows.map((row, idx) => ({ type: 'main', batchIdx: null, rowIdx: idx }));
     const startIdx = allRows.findIndex(
       r => r.type === dragGlobal.from.type &&
            r.batchIdx === dragGlobal.from.batchIdx &&
@@ -346,211 +260,147 @@ export default function OrderTaskPage() {
     );
   }, [mainRows, uploadedBatches, taskId, setOrders]);
 
+  // --- Рендер ---
+  if (!project || !subOrder) {
+    return (
+      <div className="min-h-screen bg-[#262537] text-white flex flex-col justify-center items-center">
+        <div className="mb-4 text-2xl">Заказ не найден</div>
+        <button
+          onClick={() => navigate(-1)}
+          className="underline text-violet-400 hover:text-violet-300"
+        >
+          Назад
+        </button>
+      </div>
+    );
+  }
+
   return (
     <div className="min-h-screen w-screen bg-[#262537] font-['Inter'] flex flex-row" style={{ userSelect: dragGlobal.active ? 'none' : 'auto' }}>
-        {/* ... SIDEBAR ... */}
-      <Sidebar
-              navOpen={navOpen}
-              setNavOpen={setNavOpen}
-              progressPercent={false}
-            />
+      <Sidebar navOpen={false} setNavOpen={() => {}} progressPercent={subOrder.progress || 0} />
 
       <main className="flex-1 min-h-screen pl-0 md:pl-3 py-8 bg-gradient-to-br from-[#292d3e] via-[#23283b] to-[#23283b] flex flex-col">
         <div className="w-full flex flex-row items-center gap-8 px-8 mb-6">
-          <span className="text-stone-300 text-2xl font-light whitespace-nowrap">{mockData.product}</span>
-          <span className="text-white text-base md:text-lg">Заказ <b>№ {mockData.order}</b></span>
-          <span className="text-white text-base md:text-lg">Проект <b>№ {mockData.project}</b></span>
+          <span className="text-stone-300 text-2xl font-light whitespace-nowrap">{subOrder.product}</span>
+          <span className="text-white text-base md:text-lg">Заказ <b>№ {subOrder.id}</b></span>
+          <span className="text-white text-base md:text-lg">Проект <b>№ {project.id}</b></span>
         </div>
-        {/* --- Таблица --- */}
         <div className="bg-[#2B2F3A] rounded-xl shadow-xl px-1 md:px-4 py-2 overflow-x-auto mx-4" style={{ minHeight: 480 }}>
-          <table className="min-w-[900px] w-full table-fixed border-separate border-spacing-0">
-            <thead>
-              <tr>
-                <th className="px-2 py-3 border-b border-gray-700 bg-[#23293B] text-white text-sm font-semibold text-center whitespace-nowrap">П.Н детали</th>
-                <th className="px-2 py-3 border-b border-gray-700 bg-[#23293B] text-white text-sm font-semibold text-center whitespace-nowrap">Наименование</th>
-                <th className="px-2 py-3 border-b border-gray-700 bg-[#23293B] text-white text-sm font-semibold text-center whitespace-nowrap">Обозначение</th>
-                <th className="px-2 py-3 border-b border-gray-700 bg-[#23293B] text-white text-sm font-semibold text-center whitespace-nowrap">Материал</th>
-                <th className="px-1 py-3 border-b border-gray-700 bg-[#23293B] text-white text-sm font-semibold text-center">Кол-во по зад.</th>
-                <th className="px-1 py-3 border-b border-gray-700 bg-[#23293B] text-white text-sm font-semibold text-center">Изготовил</th>
-                <th className="px-1 py-3 border-b border-gray-700 bg-[#23293B] text-white text-sm font-semibold text-center">Маршрут</th>
-                <th className="px-1 py-3 border-b border-gray-700 bg-[#23293B] text-white text-sm font-semibold text-center">Статус</th>
-                <th className="px-1 py-3 border-b border-gray-700 bg-[#23293B] text-white text-sm font-semibold text-center">Задание</th>
-              </tr>
-            </thead>
-            <tbody>
-              {/* Основная таблица */}
-              {mainRows.map((row, idx) => {
-                const ready = String(row.made) === String(row.count) && row.count !== "";
-                return (
-                  <tr key={"mock-" + idx} className="hover:bg-[#353a45] transition"
-                    onMouseMove={() => handleGlobalDragOver('main', null, idx)}
-                  >
-                    <td className="py-2 px-2 border-b border-gray-700 text-white text-center">{row.partNum}</td>
-                    <td className="py-2 px-2 border-b border-gray-700 text-white text-center">{row.name}</td>
-                    <td className="py-2 px-2 border-b border-gray-700 text-white text-center">{row.code}</td>
-                    <td className="py-2 px-2 border-b border-gray-700 text-white text-xs text-left">{row.material}</td>
-                    <td className="py-2 px-2 border-b border-gray-700 text-white text-center">{row.count}</td>
-                    {/* Изготовил */}
-                    <td className="py-2 px-2 border-b border-gray-700 text-white text-center">
-                      <input
-                        type="number"
-                        min="0"
-                        step="1"
-                        pattern="[0-9]*"
-                        className="w-16 bg-transparent border-b border-violet-400 text-white text-center outline-none"
-                        value={row.made}
-                        onChange={e =>
-                          handleRowEditMain(idx, "made", e.target.value.replace(/[^0-9]/g, ""))
-                        }
-                        placeholder=""
-                        disabled={ready}
-                      />
-                    </td>
-                    {/* Маршрут */}
-                    <td
-                      className={
-                        `py-2 px-2 border-b border-gray-700 text-white text-center underline cursor-pointer relative group` +
-                        (isGlobalDragHighlighted('main', null, idx) ? " bg-violet-900/60" : "")
-                      }
-                      onClick={() => handleCellClick('main', null, idx)}
+          {mainRows.length > 0 ? (
+            <table className="min-w-[900px] w-full table-fixed border-separate border-spacing-0">
+              <thead>
+                <tr>
+                  <th className="px-2 py-3 border-b border-gray-700 bg-[#23293B] text-white text-sm font-semibold text-center whitespace-nowrap">П.Н детали</th>
+                  <th className="px-2 py-3 border-b border-gray-700 bg-[#23293B] text-white text-sm font-semibold text-center whitespace-nowrap">Наименование</th>
+                  <th className="px-2 py-3 border-b border-gray-700 bg-[#23293B] text-white text-sm font-semibold text-center whitespace-nowrap">Обозначение</th>
+                  <th className="px-2 py-3 border-b border-gray-700 bg-[#23293B] text-white text-sm font-semibold text-center whitespace-nowrap">Материал</th>
+                  <th className="px-1 py-3 border-b border-gray-700 bg-[#23293B] text-white text-sm font-semibold text-center">Кол-во по зад.</th>
+                  <th className="px-1 py-3 border-b border-gray-700 bg-[#23293B] text-white text-sm font-semibold text-center">Изготовил</th>
+                  <th className="px-1 py-3 border-b border-gray-700 bg-[#23293B] text-white text-sm font-semibold text-center">Маршрут</th>
+                  <th className="px-1 py-3 border-b border-gray-700 bg-[#23293B] text-white text-sm font-semibold text-center">Статус</th>
+                  <th className="px-1 py-3 border-b border-gray-700 bg-[#23293B] text-white text-sm font-semibold text-center">Задание</th>
+                </tr>
+              </thead>
+              <tbody>
+                {mainRows.map((row, idx) => {
+                  const ready = String(row.made) === String(row.count) && row.count !== "";
+                  return (
+                    <tr key={"main-" + idx} className="hover:bg-[#353a45] transition"
+                      onMouseMove={() => handleGlobalDragOver('main', null, idx)}
                     >
-                      {row.cell}
-                      {row.cell !== "-" && (
-                        <span
-                          className="absolute right-1 bottom-1 w-4 h-4 rounded bg-violet-600 flex items-center justify-center text-xs text-white shadow group-hover:scale-110 group-hover:bg-violet-500 cursor-row-resize select-none"
-                          style={{
-                            cursor: "ns-resize",
-                            border: "2px solid #fff",
-                            fontWeight: "bold",
-                            fontSize: "12px",
-                            zIndex: 10,
-                          }}
-                          onMouseDown={e => handleGlobalDragStart('main', null, idx, row.cell, e)}
-                          title="Протянуть вниз (drag-and-drop)"
-                        >↡</span>
-                      )}
-                    </td>
-                    {/* Статус */}
-                    <td className="py-2 px-2 border-b border-gray-700 text-white text-center">
-                      <select
-                        className="bg-[#262537] border border-violet-700 rounded px-1 text-white"
-                        value={ready ? "Готово" : (row.status || "")}
-                        onChange={e => handleRowEditMain(idx, "status", e.target.value)}
-                        disabled={ready}
-                      >
-                        <option value="Открыт">Открыт</option>
-                        <option value="В работе">В работе</option>
-                        <option value="Готово">Готово</option>
-                        <option value="Закрыт">Закрыт</option>
-                      </select>
-                    </td>
-                    {/* Задание */}
-                    <td className="py-2 px-2 border-b border-gray-700 text-center">
-                      <button
-                        className="underline text-indigo-300 hover:text-violet-400 transition"
-                        onClick={() => navigate(`/order/${row.taskId}`)}
-                      >
-                        {row.taskId}
-                      </button>
-                    </td>
-                  </tr>
-                );
-              })}
-              {/* Batch таблицы (загруженные спецификации) */}
-              {uploadedBatches.map((batch, bidx) => (
-                <React.Fragment key={bidx}>
-                  <tr>
-                    <td colSpan={3} className="py-2 px-2 border-b border-gray-700 text-purple-300 text-xs text-left font-semibold">
-                      Дата загрузки: {batch.date}
-                    </td>
-                    <td colSpan={3} className="py-2 px-2 border-b border-gray-700 text-purple-300 text-xs text-left font-semibold">
-                      Имя файла спецификации: {batch.file}
-                    </td>
-                    <td colSpan={3} className="py-2 px-2 border-b border-gray-700 text-purple-300 text-xs text-left font-semibold">
-                      Загрузил: {batch.uploader}
-                    </td>
-                  </tr>
-                  {batch.rows.map((row, ridx) => {
-                    const ready = String(row.made) === String(row.count) && row.count !== "";
-                    return (
-                      <tr key={`batch${bidx}-${ridx}`} className="hover:bg-[#353a45] transition"
-                        onMouseMove={() => handleGlobalDragOver('batch', bidx, ridx)}
-                      >
-                        <td className="py-2 px-2 border-b border-gray-700 text-white text-center">{row.partNum}</td>
-                        <td className="py-2 px-2 border-b border-gray-700 text-white text-center">{row.name}</td>
-                        <td className="py-2 px-2 border-b border-gray-700 text-white text-center">{row.code}</td>
-                        <td className="py-2 px-2 border-b border-gray-700 text-white text-xs text-left">{row.material}</td>
-                        <td className="py-2 px-2 border-b border-gray-700 text-white text-center">{row.count}</td>
-                        {/* Изготовил */}
-                        <td className="py-2 px-2 border-b border-gray-700 text-white text-center">
-                          <input
-                            type="number"
-                            min="0"
-                            step="1"
-                            pattern="[0-9]*"
-                            className="w-16 bg-transparent border-b border-violet-400 text-white text-center outline-none"
-                            value={row.made}
-                            onChange={e =>
-                              handleRowEditBatch(bidx, ridx, "made", e.target.value.replace(/[^0-9]/g, ""))
-                            }
-                            placeholder=""
-                            disabled={ready}
-                          />
-                        </td>
-                        {/* Маршрут */}
-                        <td
-                          className={
-                            `py-2 px-2 border-b border-gray-700 text-white text-center underline cursor-pointer relative group` +
-                            (isGlobalDragHighlighted('batch', bidx, ridx) ? " bg-violet-900/60" : "")
+                      <td className="py-2 px-2 border-b border-gray-700 text-white text-center">{row.partNum}</td>
+                      <td className="py-2 px-2 border-b border-gray-700 text-white text-center">{row.name}</td>
+                      <td className="py-2 px-2 border-b border-gray-700 text-white text-center">{row.code}</td>
+                      <td className="py-2 px-2 border-b border-gray-700 text-white text-xs text-left">{row.material}</td>
+                      <td className="py-2 px-2 border-b border-gray-700 text-white text-center">{row.count}</td>
+                      {/* Изготовил */}
+                      <td className="py-2 px-2 border-b border-gray-700 text-white text-center">
+                        <input
+                          type="number"
+                          min="0"
+                          step="1"
+                          pattern="[0-9]*"
+                          className="w-16 bg-transparent border-b border-violet-400 text-white text-center outline-none"
+                          value={row.made}
+                          onChange={e =>
+                            handleRowEditMain(idx, "made", e.target.value.replace(/[^0-9]/g, ""))
                           }
-                          onClick={() => handleCellClick('batch', bidx, ridx)}
+                          placeholder=""
+                          disabled={ready}
+                        />
+                      </td>
+                      {/* Маршрут */}
+                      <td
+                        className={
+                          `py-2 px-2 border-b border-gray-700 text-white text-center underline cursor-pointer relative group` +
+                          (isGlobalDragHighlighted('main', null, idx) ? " bg-violet-900/60" : "")
+                        }
+                        onClick={() => handleCellClick('main', null, idx)}
+                      >
+                        {row.cell}
+                        {row.cell !== "-" && (
+                          <span
+                            className="absolute right-1 bottom-1 w-4 h-4 rounded bg-violet-600 flex items-center justify-center text-xs text-white shadow group-hover:scale-110 group-hover:bg-violet-500 cursor-row-resize select-none"
+                            style={{
+                              cursor: "ns-resize",
+                              border: "2px solid #fff",
+                              fontWeight: "bold",
+                              fontSize: "12px",
+                              zIndex: 10,
+                            }}
+                            onMouseDown={e => handleGlobalDragStart('main', null, idx, row.cell, e)}
+                            title="Протянуть вниз (drag-and-drop)"
+                          >↡</span>
+                        )}
+                      </td>
+                      {/* Статус */}
+                      <td className="py-2 px-2 border-b border-gray-700 text-white text-center">
+                        <select
+                          className="bg-[#262537] border border-violet-700 rounded px-1 text-white"
+                          value={ready ? "Готово" : (row.status || "")}
+                          onChange={e => handleRowEditMain(idx, "status", e.target.value)}
+                          disabled={ready}
                         >
-                          {row.cell}
-                          {row.cell !== "-" && (
-                            <span
-                              className="absolute right-1 bottom-1 w-4 h-4 rounded bg-violet-600 flex items-center justify-center text-xs text-white shadow group-hover:scale-110 group-hover:bg-violet-500 cursor-row-resize select-none"
-                              style={{
-                                cursor: "ns-resize",
-                                border: "2px solid #fff",
-                                fontWeight: "bold",
-                                fontSize: "12px",
-                                zIndex: 10,
-                              }}
-                              onMouseDown={e => handleGlobalDragStart('batch', bidx, ridx, row.cell, e)}
-                              title="Протянуть вниз (drag-and-drop)"
-                            >↡</span>
-                          )}
-                        </td>
-                        {/* Статус */}
-                        <td className="py-2 px-2 border-b border-gray-700 text-white text-center">
-                          <select
-                            className="bg-[#262537] border border-violet-700 rounded px-1 text-white"
-                            value={ready ? "Готово" : (row.status || "")}
-                            onChange={e => handleRowEditBatch(bidx, ridx, "status", e.target.value)}
-                            disabled={ready}
-                          >
-                            <option value="">-</option>
-                            <option value="В работе">В работе</option>
-                            <option value="Готово">Готово</option>
-                            <option value="В архиве">В архиве</option>
-                          </select>
-                        </td>
-                        {/* Задание */}
-                        <td className="py-2 px-2 border-b border-gray-700 text-center"></td>
-                      </tr>
-                    );
-                  })}
-                </React.Fragment>
-              ))}
-            </tbody>
-          </table>
+                          <option value="Открыт">Открыт</option>
+                          <option value="В работе">В работе</option>
+                          <option value="Готово">Готово</option>
+                          <option value="Закрыт">Закрыт</option>
+                        </select>
+                      </td>
+                      {/* Задание */}
+                      <td className="py-2 px-2 border-b border-gray-700 text-center">
+                        <button
+                          className="underline text-indigo-300 hover:text-violet-400 transition"
+                          onClick={() => navigate(`/order/${row.taskId}`)}
+                        >
+                          {row.taskId}
+                        </button>
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          ) : (
+            <div className="text-gray-400 text-center py-24">
+              Для этого заказа не загружена спецификация. Загрузите файл для отображения данных.
+            </div>
+          )}
         </div>
+        <input
+          ref={fileInputRef}
+          type="file"
+          accept=".xls,.xlsx"
+          className="hidden"
+          onChange={handleUploadSpec}
+        />
         <button
           className="cursor-pointer w-[210px] h-10 mt-2 bg-gradient-to-r from-[#922b7b] to-[#3c1c3e] rounded text-white text-base font-semibold mb-8 hover:bg-violet-900 transition"
           onClick={() => fileInputRef.current.click()}
         >
           Загрузить спецификацию
         </button>
+
         {/* --- Модалка выбора маршрута --- */}
         {routeSelectOpen && (
           <div className="fixed inset-0 bg-black/70 z-40 flex items-center justify-center">

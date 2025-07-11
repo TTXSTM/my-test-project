@@ -9,7 +9,7 @@ const getProgressGradient = () =>
 function ProgressBar({ percent }) {
   return (
     <div
-      className="flex-1 h-full flex items-center justify-center rounded-b-lg"
+      className="w-full h-[32px] flex items-center justify-center rounded-lg"
       style={{
         background: getProgressGradient(),
         minWidth: 0,
@@ -45,6 +45,12 @@ export default function ProjectPage() {
     responsible: "",
   });
 
+  // Только цифры для id
+  function handleIdChange(e) {
+    const val = e.target.value.replace(/\D/g, "");
+    setNewSubOrder((o) => ({ ...o, id: val }));
+  }
+
   function handleCreateSubOrder(e) {
     e.preventDefault();
     setOrders((prevOrders) =>
@@ -56,7 +62,7 @@ export default function ProjectPage() {
                 ...(ord.subOrders || []),
                 {
                   ...newSubOrder,
-                  progress: 0, // стартовое значение (будет пересчитано потом)
+                  progress: 0,
                 },
               ],
             }
@@ -87,16 +93,6 @@ export default function ProjectPage() {
     );
   }
 
-  const cellHeight = 25;
-  const columns = [
-    { title: "№ заказа", w: 130 },
-    { title: "Наименование заказа", w: 320 },
-    { title: "Дата начала", w: 160 },
-    { title: "Дедлайн", w: 160 },
-    { title: "Исполнитель", w: 160 },
-    { title: "Прогресс", w: 180 },
-  ];
-
   // --- ПРОГРЕСС проекта по подзаказам
   const projectProgress =
     order.subOrders && order.subOrders.length
@@ -110,7 +106,7 @@ export default function ProjectPage() {
 
   return (
     <div className="min-h-screen bg-[#262537] flex flex-col md:flex-row font-['Inter']">
-      {/* Sidebar с пайчартом и рабочей навигацией */}
+      {/* Sidebar */}
       <Sidebar
         navOpen={navOpen}
         setNavOpen={setNavOpen}
@@ -133,10 +129,12 @@ export default function ProjectPage() {
               <input
                 className="mt-1 rounded px-3 py-2 bg-slate-700 text-white w-full outline-none"
                 value={newSubOrder.id}
-                onChange={(e) =>
-                  setNewSubOrder((o) => ({ ...o, id: e.target.value }))
-                }
+                onChange={handleIdChange}
                 required
+                inputMode="numeric"
+                pattern="[0-9]*"
+                maxLength={8}
+                title="Введите только цифры"
               />
             </label>
             <label className="text-slate-300 text-base">
@@ -213,8 +211,8 @@ export default function ProjectPage() {
         </div>
       )}
 
-      <main className="flex-1 py-10 px-4 md:px-8 bg-[#262537] min-h-screen">
-        <div className="max-w-6xl mx-auto">
+      <main className="flex-1 py-10 px-2 md:px-10 bg-[#262537] min-h-screen">
+        <div className="mx-auto w-full">
           {/* --- Блок проекта --- */}
           <div
             className="rounded-[16px] mb-14 mt-6 overflow-hidden shadow"
@@ -229,10 +227,7 @@ export default function ProjectPage() {
                 borderTopRightRadius: "16px",
               }}
             >
-              <div
-                className="flex-1 py-3 px-6 text-left text-slate-200 font-bold text-base"
-                style={{ letterSpacing: "0.02em" }}
-              >
+              <div className="flex-1 py-3 px-6 text-left text-slate-200 font-bold text-base">
                 № Проекта
               </div>
               <div className="flex-[2.2] py-3 px-6 text-left text-slate-200 font-bold text-base">
@@ -331,86 +326,50 @@ export default function ProjectPage() {
           </div>
 
           {/* --- Список подзаказов --- */}
-          <div className="flex flex-col gap-5">
+          <div className="flex flex-col gap-4 w-full">
             {order.subOrders && order.subOrders.length > 0 ? (
               order.subOrders.map((sub) => (
-                <div key={sub.id} className="w-full">
+                <div key={sub.id} className="flex flex-col w-full">
                   {/* Header */}
-                  <div className="flex justify-between mb-0">
-                    {columns.map((col, i) => (
-                      <div
-                        key={col.title}
-                        className={`rounded-t-lg flex items-center justify-center bg-[#746487] text-white text-[15px] font-medium`}
-                        style={{
-                          width: col.w,
-                          height: `${cellHeight}px`,
-                          ...(i === 0 && { borderTopLeftRadius: 10 }),
-                          ...(i === columns.length - 1 && { borderTopRightRadius: 10 }),
-                        }}
-                      >
-                        {col.title}
-                      </div>
-                    ))}
+                  <div className="flex bg-[#746487] text-white text-[15px] font-medium rounded-t-lg overflow-hidden">
+                    <div className="flex-1 py-2 px-3 text-center">№ заказа</div>
+                    <div className="flex-[2.3] py-2 px-3 text-center">Наименование заказа</div>
+                    <div className="flex-1 py-2 px-3 text-center">Дата начала</div>
+                    <div className="flex-1 py-2 px-3 text-center">Дедлайн</div>
+                    <div className="flex-1 py-2 px-3 text-center">Исполнитель</div>
+                    <div className="flex-1 py-2 px-3 text-center">Прогресс</div>
                   </div>
                   {/* Row */}
-                  <div
-                    className="flex justify-between"
-                    style={{
-                      height: `${cellHeight}px`,
-                      boxShadow: "0 1px 8px 0 rgba(0,0,0,0.06)",
-                      marginTop: 0,
-                      marginBottom: 0,
-                      overflow: "hidden",
-                    }}
-                  >
+                  <div className="flex bg-[#f2f2f2] rounded-b-lg overflow-hidden min-h-[38px]">
                     <Link
                       to={`/order/${sub.id}`}
-                      className="rounded-b-lg flex items-center justify-center bg-[#e6e6e6] text-black text-[17px] font-bold underline hover:text-violet-600 transition-all duration-100"
-                      style={{
-                        width: columns[0].w,
-                        height: "100%",
-                        textDecorationThickness: "2px",
-                      }}
+                      className="flex-1 py-2 px-3 text-center text-black font-bold underline hover:text-violet-600"
+                      style={{ textDecorationThickness: "2px", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}
+                      title={sub.id}
                     >
                       {sub.id}
                     </Link>
                     <div
-                      className="rounded-b-lg flex items-center bg-[#e6e6e6] text-black text-[16px] px-3"
+                      className="flex-[2.3] py-2 px-3 text-center text-black"
                       style={{
-                        width: columns[1].w,
-                        height: "100%",
-                        fontFamily: "Inter, sans-serif",
+                        whiteSpace: "nowrap",
+                        overflow: "hidden",
+                        textOverflow: "ellipsis",
                       }}
+                      title={sub.product}
                     >
                       {sub.product}
                     </div>
-                    <div
-                      className="rounded-b-lg flex items-center justify-center bg-[#e6e6e6] text-black text-[16px]"
-                      style={{ width: columns[2].w, height: "100%" }}
-                    >
-                      {sub.startDate}
-                    </div>
-                    <div
-                      className="rounded-b-lg flex items-center justify-center bg-[#e6e6e6] text-black text-[16px]"
-                      style={{ width: columns[3].w, height: "100%" }}
-                    >
-                      {sub.deadline}
-                    </div>
-                    <div
-                      className="rounded-b-lg flex items-center justify-center bg-[#e6e6e6] text-black text-[16px]"
-                      style={{ width: columns[4].w, height: "100%" }}
-                    >
-                      {sub.responsible}
-                    </div>
-                    <div
-                      style={{
-                        width: columns[5].w,
-                        height: "100%",
-                        overflow: "hidden",
-                        display: "flex",
-                        alignItems: "stretch",
-                      }}
-                    >
+                    <div className="flex-1 py-2 px-3 text-center text-black" style={{
+                        whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis"
+                      }} title={sub.startDate}>{sub.startDate}</div>
+                    <div className="flex-1 py-2 px-3 text-center text-black" style={{
+                        whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis"
+                      }} title={sub.deadline}>{sub.deadline}</div>
+                    <div className="flex-1 py-2 px-3 text-center text-black" style={{
+                        whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis"
+                      }} title={sub.responsible}>{sub.responsible}</div>
+                    <div className="flex-1 py-2 px-3 flex items-center justify-center">
                       <ProgressBar percent={Number(sub.progress) || 0} />
                     </div>
                   </div>

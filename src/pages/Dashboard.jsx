@@ -136,8 +136,8 @@ export default function Dashboard() {
         setNavOpen={setNavOpen}
         progressPercent={calcAllProjectsProgress(orders)}
       />
-      <main className="flex-1 py-10 px-2 md:px-8 bg-[#262537] min-h-screen">
-        <div className="max-w-7xl mx-auto space-y-8">
+      <main className="flex-1 py-10 px-2 md:px-8 bg-[#262537] min-h-screen w-full">
+        <div className="mx-auto space-y-8 w-full">
           {visibleOrders.map((order) => (
             <div key={order.id} className="space-y-0">
               <div
