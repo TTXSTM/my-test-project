@@ -4,8 +4,7 @@ import * as XLSX from "xlsx";
 import { useOrders } from "../OrdersContext";
 import Sidebar from "../Sidebar";
 
-const uploaderFio = "Ананин В.М.";
-
+// ===== МАРШРУТЫ =====
 const MARSHRUTS = [
   { id: 1, name: "Маршрут листового металла № 1", stations: [
     'Станция 1 - Лазер HFR “С1-Л”',
@@ -22,7 +21,45 @@ const MARSHRUTS = [
   ]},
 ];
 
-// === Прогресс
+// ===== СТАТУСЫ =====
+function StatusCell({ value, onChange, disabled }) {
+  let bg = "#181870";
+  let color = "#fff";
+  if (value === "Готово") { bg = "#17b528"; color = "#fff"; }
+  else if (value === "Делать") { bg = "#c7c754"; color = "#222"; }
+  else if (value === "В работе") { bg = "#181870"; color = "#fff"; }
+  else if (value === "Открыт") { bg = "#393943"; color = "#fff"; }
+  else if (value === "Закрыт") { bg = "#393943"; color = "#fff"; }
+
+  return (
+    <select
+      style={{
+        background: bg,
+        color,
+        fontWeight: 600,
+        fontSize: 16,
+        border: "none",
+        outline: "none",
+        borderRadius: 0,
+        width: "100%",
+        padding: "7px 0",
+        textAlign: "center",
+        transition: "background 0.2s",
+      }}
+      value={value}
+      onChange={onChange}
+      disabled={disabled}
+    >
+      <option value="Открыт">Открыт</option>
+      <option value="В работе">В работе</option>
+      <option value="Делать">Делать</option>
+      <option value="Готово">Готово</option>
+      <option value="Закрыт">Закрыт</option>
+    </select>
+  );
+}
+
+// ===== ПРОГРЕСС =====
 function calcSubOrderProgress(mainRows, uploadedBatches) {
   let total = 0, ready = 0;
   for (const row of mainRows) {
@@ -39,12 +76,127 @@ function calcSubOrderProgress(mainRows, uploadedBatches) {
   return Math.round((ready / total) * 100);
 }
 
+// ===== КОНФИГ КОЛОНОК =====
+const initialColumns = [
+  {
+    key: "partNum",
+    title: "П.Н детали",
+    render: row => row.partNum,
+    className: "text-center",
+    width: 110,
+  },
+  {
+    key: "name",
+    title: "Наименование",
+    render: row => row.name,
+    className: "text-center",
+    width: 170,
+  },
+  {
+    key: "code",
+    title: "Обозначение",
+    render: row => row.code,
+    className: "text-center",
+    width: 130,
+  },
+  {
+    key: "material",
+    title: "Материал",
+    render: row => <span className="text-xs text-left">{row.material}</span>,
+    className: "text-left",
+    width: 170,
+  },
+  {
+    key: "count",
+    title: "Кол-во по зад.",
+    render: row => row.count,
+    className: "text-center",
+    width: 90,
+  },
+  {
+    key: "made",
+    title: "Изготовил",
+    render: (row, idx, ready, handleRowEditMain) => (
+      <input
+        type="number"
+        min="0"
+        step="1"
+        pattern="[0-9]*"
+        className="w-16 bg-transparent border-b border-violet-400 text-white text-center outline-none"
+        value={row.made}
+        onChange={e => handleRowEditMain(idx, "made", e.target.value.replace(/[^0-9]/g, ""))}
+        placeholder=""
+        disabled={ready}
+      />
+    ),
+    className: "text-center",
+    width: 100,
+  },
+  {
+    key: "cell",
+    title: "Маршрут",
+    render: (row, idx, _ready, _handleRowEditMain, handleCellClick, isGlobalDragHighlighted, dragGlobal) => (
+      <div
+        className={
+          "underline cursor-pointer relative group py-2 px-2 " +
+          (isGlobalDragHighlighted('main', null, idx) ? " bg-violet-900/60" : "")
+        }
+        onClick={() => handleCellClick('main', null, idx)}
+      >
+        {row.cell}
+        {row.cell !== "-" && (
+          <span
+            className="absolute right-1 bottom-1 w-4 h-4 rounded bg-violet-600 flex items-center justify-center text-xs text-white shadow group-hover:scale-110 group-hover:bg-violet-500 cursor-row-resize select-none"
+            style={{
+              cursor: "ns-resize",
+              border: "2px solid #fff",
+              fontWeight: "bold",
+              fontSize: "12px",
+              zIndex: 10,
+            }}
+            onMouseDown={e => dragGlobal.handleGlobalDragStart('main', null, idx, row.cell, e)}
+            title="Протянуть вниз (drag-and-drop)"
+          >↡</span>
+        )}
+      </div>
+    ),
+    className: "text-center",
+    width: 110,
+  },
+  {
+    key: "status",
+    title: "Статус",
+    render: (row, idx, ready, handleRowEditMain) => (
+      <StatusCell
+        value={ready ? "Готово" : (row.status || "")}
+        onChange={e => handleRowEditMain(idx, "status", e.target.value)}
+        disabled={ready}
+      />
+    ),
+    className: "text-center",
+    width: 120,
+  },
+  {
+    key: "taskId",
+    title: "Задание",
+    render: (row, idx, _ready, _handleRowEditMain, _handleCellClick, _isGlobalDragHighlighted, _dragGlobal, navigate) => (
+      <button
+        className="underline text-indigo-300 hover:text-violet-400 transition"
+        onClick={() => navigate(`/order/${row.taskId}`)}
+      >
+        {row.taskId}
+      </button>
+    ),
+    className: "text-center",
+    width: 100,
+  },
+];
+
 export default function OrderTaskPage() {
   const { taskId } = useParams();
   const navigate = useNavigate();
   const { orders, setOrders } = useOrders();
 
-  // === Найти проект и подзаказ ===
   const project = orders.find(order =>
     order.subOrders && order.subOrders.some(sub => sub.id === taskId)
   );
@@ -52,10 +204,28 @@ export default function OrderTaskPage() {
     ? project.subOrders.find(sub => sub.id === taskId)
     : null;
 
-  // Таблица и батчи (batch — если будешь поддерживать множественные xlsx, иначе mainRows)
   const [mainRows, setMainRows] = useState([]);
   const [uploadedBatches, setUploadedBatches] = useState([]);
   const fileInputRef = useRef();
+
+  // --- drag&drop для колонок ---
+  const [columns, setColumns] = useState(initialColumns);
+  const [draggedColIdx, setDraggedColIdx] = useState(null);
+
+  function onColDragStart(idx) {
+    setDraggedColIdx(idx);
+  }
+  function onColDragOver(idx, e) {
+    e.preventDefault();
+  }
+  function onColDrop(idx) {
+    if (draggedColIdx === null || draggedColIdx === idx) return;
+    const newCols = [...columns];
+    const [dragged] = newCols.splice(draggedColIdx, 1);
+    newCols.splice(idx, 0, dragged);
+    setColumns(newCols);
+    setDraggedColIdx(null);
+  }
 
   // DRAG-FILL
   const [dragGlobal, setDragGlobal] = useState({
@@ -63,9 +233,87 @@ export default function OrderTaskPage() {
     from: null,
     to: null,
     value: null,
+    handleGlobalDragStart: handleGlobalDragStart,
   });
+  function handleGlobalDragStart(type, batchIdx, rowIdx, value, e) {
+    e.stopPropagation();
+    setDragGlobal({
+      ...dragGlobal,
+      active: true,
+      from: { type, batchIdx, rowIdx },
+      to: { type, batchIdx, rowIdx },
+      value,
+      handleGlobalDragStart,
+    });
+    document.body.style.userSelect = "none";
+  }
+  function handleGlobalDragOver(type, batchIdx, rowIdx) {
+    if (dragGlobal.active) {
+      setDragGlobal(drag => ({
+        ...drag,
+        to: { type, batchIdx, rowIdx }
+      }));
+    }
+  }
+  useEffect(() => {
+    function handleMouseUp() {
+      if (dragGlobal.active && dragGlobal.from && dragGlobal.to && dragGlobal.value !== null) {
+        // только mainRows
+        const allRows = mainRows.map((row, idx) => ({ type: 'main', batchIdx: null, rowIdx: idx }));
+        const startIdx = allRows.findIndex(
+          r => r.type === dragGlobal.from.type &&
+               r.batchIdx === dragGlobal.from.batchIdx &&
+               r.rowIdx === dragGlobal.from.rowIdx
+        );
+        const endIdx = allRows.findIndex(
+          r => r.type === dragGlobal.to.type &&
+               r.batchIdx === dragGlobal.to.batchIdx &&
+               r.rowIdx === dragGlobal.to.rowIdx
+        );
+        if (startIdx === -1 || endIdx === -1) {
+          setDragGlobal({ ...dragGlobal, active: false, from: null, to: null, value: null });
+          document.body.style.userSelect = "";
+          return;
+        }
+        const [fromIdx, toIdx] = [startIdx, endIdx].sort((a, b) => a - b);
+        let newMainRows = [...mainRows];
+        for (let i = fromIdx; i <= toIdx; ++i) {
+          const r = allRows[i];
+          newMainRows[r.rowIdx] = { ...newMainRows[r.rowIdx], cell: dragGlobal.value };
+        }
+        setMainRows(newMainRows);
+      }
+      setDragGlobal({ ...dragGlobal, active: false, from: null, to: null, value: null });
+      document.body.style.userSelect = "";
+    }
+    if (dragGlobal.active) {
+      window.addEventListener("mouseup", handleMouseUp);
+      return () => window.removeEventListener("mouseup", handleMouseUp);
+    }
+  }, [dragGlobal, mainRows]);
 
-  // === XLSX загрузка ===
+  function isGlobalDragHighlighted(type, batchIdx, rowIdx) {
+    if (!dragGlobal.active || !dragGlobal.from || !dragGlobal.to) return false;
+    const allRows = mainRows.map((row, idx) => ({ type: 'main', batchIdx: null, rowIdx: idx }));
+    const startIdx = allRows.findIndex(
+      r => r.type === dragGlobal.from.type &&
+           r.batchIdx === dragGlobal.from.batchIdx &&
+           r.rowIdx === dragGlobal.from.rowIdx
+    );
+    const endIdx = allRows.findIndex(
+      r => r.type === dragGlobal.to.type &&
+           r.batchIdx === dragGlobal.to.batchIdx &&
+           r.rowIdx === dragGlobal.to.rowIdx
+    );
+    const meIdx = allRows.findIndex(
+      r => r.type === type && r.batchIdx === batchIdx && r.rowIdx === rowIdx
+    );
+    if (startIdx === -1 || endIdx === -1 || meIdx === -1) return false;
+    const [fromIdx, toIdx] = [startIdx, endIdx].sort((a, b) => a - b);
+    return meIdx >= fromIdx && meIdx <= toIdx;
+  }
+
+  // --- XLSX загрузка ---
   function findCol(headerArr, variants) {
     for (let i = 0; i < headerArr.length; ++i) {
       const val = String(headerArr[i]).trim().toLowerCase();
@@ -121,7 +369,6 @@ export default function OrderTaskPage() {
     reader.readAsArrayBuffer(file);
   };
 
-  // === Изменения в таблице (mainRows)
   function handleRowEditMain(rowIdx, field, value) {
     setMainRows(prev => prev.map((row, idx) => {
       let newRow = idx === rowIdx ? { ...row, [field]: value } : row;
@@ -136,7 +383,7 @@ export default function OrderTaskPage() {
     }));
   }
 
-  // === Маршрут (выбор/drag-fill)
+  // === Маршрут (выбор/drag-fill) ===
   const [routeSelectOpen, setRouteSelectOpen] = useState(false);
   const [selectedRoute, setSelectedRoute] = useState(null);
   const [showStations, setShowStations] = useState(false);
@@ -168,84 +415,6 @@ export default function OrderTaskPage() {
     setClicked(null);
   }
 
-  // DRAG-FILL реализация
-  function handleGlobalDragStart(type, batchIdx, rowIdx, value, e) {
-    e.stopPropagation();
-    setDragGlobal({
-      active: true,
-      from: { type, batchIdx, rowIdx },
-      to: { type, batchIdx, rowIdx },
-      value,
-    });
-    document.body.style.userSelect = "none";
-  }
-  function handleGlobalDragOver(type, batchIdx, rowIdx) {
-    if (dragGlobal.active) {
-      setDragGlobal(drag => ({
-        ...drag,
-        to: { type, batchIdx, rowIdx }
-      }));
-    }
-  }
-  useEffect(() => {
-    function handleMouseUp() {
-      if (dragGlobal.active && dragGlobal.from && dragGlobal.to && dragGlobal.value !== null) {
-        // только mainRows
-        const allRows = mainRows.map((row, idx) => ({ type: 'main', batchIdx: null, rowIdx: idx }));
-        const startIdx = allRows.findIndex(
-          r => r.type === dragGlobal.from.type &&
-               r.batchIdx === dragGlobal.from.batchIdx &&
-               r.rowIdx === dragGlobal.from.rowIdx
-        );
-        const endIdx = allRows.findIndex(
-          r => r.type === dragGlobal.to.type &&
-               r.batchIdx === dragGlobal.to.batchIdx &&
-               r.rowIdx === dragGlobal.to.rowIdx
-        );
-        if (startIdx === -1 || endIdx === -1) {
-          setDragGlobal({ active: false, from: null, to: null, value: null });
-          document.body.style.userSelect = "";
-          return;
-        }
-        const [fromIdx, toIdx] = [startIdx, endIdx].sort((a, b) => a - b);
-        let newMainRows = [...mainRows];
-        for (let i = fromIdx; i <= toIdx; ++i) {
-          const r = allRows[i];
-          newMainRows[r.rowIdx] = { ...newMainRows[r.rowIdx], cell: dragGlobal.value };
-        }
-        setMainRows(newMainRows);
-      }
-      setDragGlobal({ active: false, from: null, to: null, value: null });
-      document.body.style.userSelect = "";
-    }
-    if (dragGlobal.active) {
-      window.addEventListener("mouseup", handleMouseUp);
-      return () => window.removeEventListener("mouseup", handleMouseUp);
-    }
-  }, [dragGlobal, mainRows]);
-
-  function isGlobalDragHighlighted(type, batchIdx, rowIdx) {
-    if (!dragGlobal.active || !dragGlobal.from || !dragGlobal.to) return false;
-    const allRows = mainRows.map((row, idx) => ({ type: 'main', batchIdx: null, rowIdx: idx }));
-    const startIdx = allRows.findIndex(
-      r => r.type === dragGlobal.from.type &&
-           r.batchIdx === dragGlobal.from.batchIdx &&
-           r.rowIdx === dragGlobal.from.rowIdx
-    );
-    const endIdx = allRows.findIndex(
-      r => r.type === dragGlobal.to.type &&
-           r.batchIdx === dragGlobal.to.batchIdx &&
-           r.rowIdx === dragGlobal.to.rowIdx
-    );
-    const meIdx = allRows.findIndex(
-      r => r.type === type && r.batchIdx === batchIdx && r.rowIdx === rowIdx
-    );
-    if (startIdx === -1 || endIdx === -1 || meIdx === -1) return false;
-    const [fromIdx, toIdx] = [startIdx, endIdx].sort((a, b) => a - b);
-    return meIdx >= fromIdx && meIdx <= toIdx;
-  }
-
-  // === ОБНОВЛЯЕМ ПРОГРЕСС ПОДЗАКАЗА В ГЛОБАЛЬНОМ ORDERS
   useEffect(() => {
     if (!taskId) return;
     setOrders(prevOrders =>
@@ -278,7 +447,6 @@ export default function OrderTaskPage() {
   return (
     <div className="min-h-screen w-screen bg-[#262537] font-['Inter'] flex flex-row" style={{ userSelect: dragGlobal.active ? 'none' : 'auto' }}>
       <Sidebar navOpen={false} setNavOpen={() => {}} progressPercent={subOrder.progress || 0} />
-
       <main className="flex-1 min-h-screen pl-0 md:pl-3 py-8 bg-gradient-to-br from-[#292d3e] via-[#23283b] to-[#23283b] flex flex-col">
         <div className="w-full flex flex-row items-center gap-8 px-8 mb-6">
           <span className="text-stone-300 text-2xl font-light whitespace-nowrap">{subOrder.product}</span>
@@ -290,92 +458,60 @@ export default function OrderTaskPage() {
             <table className="min-w-[900px] w-full table-fixed border-separate border-spacing-0">
               <thead>
                 <tr>
-                  <th className="px-2 py-3 border-b border-gray-700 bg-[#23293B] text-white text-sm font-semibold text-center whitespace-nowrap">П.Н детали</th>
-                  <th className="px-2 py-3 border-b border-gray-700 bg-[#23293B] text-white text-sm font-semibold text-center whitespace-nowrap">Наименование</th>
-                  <th className="px-2 py-3 border-b border-gray-700 bg-[#23293B] text-white text-sm font-semibold text-center whitespace-nowrap">Обозначение</th>
-                  <th className="px-2 py-3 border-b border-gray-700 bg-[#23293B] text-white text-sm font-semibold text-center whitespace-nowrap">Материал</th>
-                  <th className="px-1 py-3 border-b border-gray-700 bg-[#23293B] text-white text-sm font-semibold text-center">Кол-во по зад.</th>
-                  <th className="px-1 py-3 border-b border-gray-700 bg-[#23293B] text-white text-sm font-semibold text-center">Изготовил</th>
-                  <th className="px-1 py-3 border-b border-gray-700 bg-[#23293B] text-white text-sm font-semibold text-center">Маршрут</th>
-                  <th className="px-1 py-3 border-b border-gray-700 bg-[#23293B] text-white text-sm font-semibold text-center">Статус</th>
-                  <th className="px-1 py-3 border-b border-gray-700 bg-[#23293B] text-white text-sm font-semibold text-center">Задание</th>
+                  {columns.map((col, colIdx) => (
+                    <th
+                      key={col.key}
+                      className={
+                        `px-2 py-3 border-b border-gray-700 bg-[#23293B] text-white text-sm font-semibold text-center whitespace-nowrap ` +
+                        col.className
+                      }
+                      style={{
+                        width: col.width,
+                        cursor: "move",
+                        opacity: draggedColIdx === colIdx ? 0.65 : 1,
+                        border: draggedColIdx === colIdx ? "2px solid #c7c754" : undefined,
+                        transition: "border 0.1s"
+                      }}
+                      draggable
+                      onDragStart={() => onColDragStart(colIdx)}
+                      onDragOver={e => onColDragOver(colIdx, e)}
+                      onDrop={() => onColDrop(colIdx)}
+                      onDragEnd={() => setDraggedColIdx(null)}
+                    >
+                      {col.title}
+                    </th>
+                  ))}
                 </tr>
               </thead>
               <tbody>
                 {mainRows.map((row, idx) => {
                   const ready = String(row.made) === String(row.count) && row.count !== "";
                   return (
-                    <tr key={"main-" + idx} className="hover:bg-[#353a45] transition"
+                    <tr
+                      key={"main-" + idx}
+                      className="hover:bg-[#353a45] transition"
                       onMouseMove={() => handleGlobalDragOver('main', null, idx)}
                     >
-                      <td className="py-2 px-2 border-b border-gray-700 text-white text-center">{row.partNum}</td>
-                      <td className="py-2 px-2 border-b border-gray-700 text-white text-center">{row.name}</td>
-                      <td className="py-2 px-2 border-b border-gray-700 text-white text-center">{row.code}</td>
-                      <td className="py-2 px-2 border-b border-gray-700 text-white text-xs text-left">{row.material}</td>
-                      <td className="py-2 px-2 border-b border-gray-700 text-white text-center">{row.count}</td>
-                      {/* Изготовил */}
-                      <td className="py-2 px-2 border-b border-gray-700 text-white text-center">
-                        <input
-                          type="number"
-                          min="0"
-                          step="1"
-                          pattern="[0-9]*"
-                          className="w-16 bg-transparent border-b border-violet-400 text-white text-center outline-none"
-                          value={row.made}
-                          onChange={e =>
-                            handleRowEditMain(idx, "made", e.target.value.replace(/[^0-9]/g, ""))
-                          }
-                          placeholder=""
-                          disabled={ready}
-                        />
-                      </td>
-                      {/* Маршрут */}
-                      <td
-                        className={
-                          `py-2 px-2 border-b border-gray-700 text-white text-center underline cursor-pointer relative group` +
-                          (isGlobalDragHighlighted('main', null, idx) ? " bg-violet-900/60" : "")
-                        }
-                        onClick={() => handleCellClick('main', null, idx)}
-                      >
-                        {row.cell}
-                        {row.cell !== "-" && (
-                          <span
-                            className="absolute right-1 bottom-1 w-4 h-4 rounded bg-violet-600 flex items-center justify-center text-xs text-white shadow group-hover:scale-110 group-hover:bg-violet-500 cursor-row-resize select-none"
-                            style={{
-                              cursor: "ns-resize",
-                              border: "2px solid #fff",
-                              fontWeight: "bold",
-                              fontSize: "12px",
-                              zIndex: 10,
-                            }}
-                            onMouseDown={e => handleGlobalDragStart('main', null, idx, row.cell, e)}
-                            title="Протянуть вниз (drag-and-drop)"
-                          >↡</span>
-                        )}
-                      </td>
-                      {/* Статус */}
-                      <td className="py-2 px-2 border-b border-gray-700 text-white text-center">
-                        <select
-                          className="bg-[#262537] border border-violet-700 rounded px-1 text-white"
-                          value={ready ? "Готово" : (row.status || "")}
-                          onChange={e => handleRowEditMain(idx, "status", e.target.value)}
-                          disabled={ready}
+                      {columns.map((col, colIdx) => (
+                        <td
+                          key={col.key}
+                          className={`py-2 px-2 border-b border-gray-700 text-white ${col.className}`}
+                          style={{ width: col.width }}
                         >
-                          <option value="Открыт">Открыт</option>
-                          <option value="В работе">В работе</option>
-                          <option value="Готово">Готово</option>
-                          <option value="Закрыт">Закрыт</option>
-                        </select>
-                      </td>
-                      {/* Задание */}
-                      <td className="py-2 px-2 border-b border-gray-700 text-center">
-                        <button
-                          className="underline text-indigo-300 hover:text-violet-400 transition"
-                          onClick={() => navigate(`/order/${row.taskId}`)}
-                        >
-                          {row.taskId}
-                        </button>
-                      </td>
+                          {typeof col.render === "function"
+                            ? col.render(
+                                row,
+                                idx,
+                                ready,
+                                handleRowEditMain,
+                                handleCellClick,
+                                isGlobalDragHighlighted,
+                                dragGlobal,
+                                navigate
+                              )
+                            : row[col.key]}
+                        </td>
+                      ))}
                     </tr>
                   );
                 })}
@@ -400,7 +536,6 @@ export default function OrderTaskPage() {
         >
           Загрузить спецификацию
         </button>
-
         {/* --- Модалка выбора маршрута --- */}
         {routeSelectOpen && (
           <div className="fixed inset-0 bg-black/70 z-40 flex items-center justify-center">
@@ -424,7 +559,6 @@ export default function OrderTaskPage() {
             </div>
           </div>
         )}
-
         {/* --- Модалка детализации маршрута (станции) --- */}
         {showStations && selectedRoute && (
           <div className="fixed inset-0 bg-black/70 z-50 flex items-center justify-center">
