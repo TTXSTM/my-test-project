@@ -118,11 +118,11 @@ export default function ProjectPage() {
         <div className="fixed inset-0 z-50 bg-black/40 flex items-center justify-center">
           <form
             onSubmit={handleCreateSubOrder}
-            className="bg-[#1c1a29] border-2 border-violet-500 rounded-2xl px-7 py-8 w-[370px] flex flex-col gap-4 shadow-2xl"
+            className="bg-[#1c1a29] border-2 border-violet-500 rounded-2xl px-7 py-8 w-[1000px] flex flex-col gap-4 shadow-2xl"
             style={{ fontFamily: "Inter, sans-serif" }}
           >
             <h2 className="text-xl text-white font-semibold mb-1">
-              Добавить подзаказ
+              Добавить заказ
             </h2>
             <label className="text-slate-300 text-base">
               № заказа
@@ -201,7 +201,7 @@ export default function ProjectPage() {
               </button>
               <button
                 type="button"
-                className="text-slate-400 hover:text-red-400 flex-1"
+                className="text-slate-400 hover:text-red-400 hover:bg-[#191725] rounded flex-1"
                 onClick={() => setShowCreateSubOrder(false)}
               >
                 Отмена

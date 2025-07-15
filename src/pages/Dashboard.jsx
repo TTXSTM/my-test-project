@@ -264,7 +264,7 @@ export default function Dashboard() {
         <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50">
           <form
             onSubmit={handleCreateProject}
-            className="bg-slate-900 p-8 rounded-xl w-[350px] flex flex-col gap-4 border-2 border-violet-500"
+            className="bg-slate-900 p-8 rounded-xl w-[1000px] flex flex-col gap-4 border-2 border-violet-500"
           >
             <h2 className="text-xl text-white mb-2">Создать проект</h2>
             <label className="text-gray-200 text-sm font-semibold">

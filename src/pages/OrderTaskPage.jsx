@@ -196,6 +196,7 @@ export default function OrderTaskPage() {
   const { taskId } = useParams();
   const navigate = useNavigate();
   const { orders, setOrders } = useOrders();
+  const [navOpen, setNavOpen] = useState(false);
 
   const project = orders.find(order =>
     order.subOrders && order.subOrders.some(sub => sub.id === taskId)
@@ -446,7 +447,8 @@ export default function OrderTaskPage() {
 
   return (
     <div className="min-h-screen w-screen bg-[#262537] font-['Inter'] flex flex-row" style={{ userSelect: dragGlobal.active ? 'none' : 'auto' }}>
-      <Sidebar navOpen={false} setNavOpen={() => {}} progressPercent={subOrder.progress || 0} />
+      <Sidebar navOpen={navOpen} setNavOpen={setNavOpen} 
+      progressPercent={subOrder.progress || 0} />
       <main className="flex-1 min-h-screen pl-0 md:pl-3 py-8 bg-gradient-to-br from-[#292d3e] via-[#23283b] to-[#23283b] flex flex-col">
         <div className="w-full flex flex-row items-center gap-8 px-8 mb-6">
           <span className="text-stone-300 text-2xl font-light whitespace-nowrap">{subOrder.product}</span>
