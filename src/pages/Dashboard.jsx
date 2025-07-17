@@ -3,7 +3,7 @@ import { useOrders } from "../OrdersContext";
 import { Link, useNavigate } from "react-router-dom";
 import Sidebar from "../Sidebar";
 
-const API_URL = "http://localhost:3001/api/projects"; // если backend на другом порту
+const API_URL = "http://localhost:3001/api/projects";
 
 const getProgressGradient = () =>
   "linear-gradient(90deg, #13d110 0%, #ffe600 55%, #d90000 100%)";
@@ -44,20 +44,27 @@ export default function Dashboard() {
   const navigate = useNavigate();
 
   // Загрузка проектов из базы при загрузке страницы
+  const fetchProjects = async () => {
+    setLoading(true);
+    try {
+      const r = await fetch(API_URL);
+      const data = await r.json();
+      setOrders(
+        data.map((p) => ({
+          ...p,
+          subOrders: p.subOrders || [],
+        }))
+      );
+    } catch {
+      // Можно добавить обработку ошибок, если нужно
+    } finally {
+      setLoading(false);
+    }
+  };
+
   useEffect(() => {
-    fetch(API_URL)
-      .then((r) => r.json())
-      .then((data) => {
-        // если backend не возвращает subOrders, добавим пустой массив
-        setOrders(
-          data.map((p) => ({
-            ...p,
-            subOrders: p.subOrders || [],
-          }))
-        );
-        setLoading(false);
-      })
-      .catch(() => setLoading(false));
+    fetchProjects();
+    // eslint-disable-next-line
   }, [setOrders]);
 
   useEffect(() => {
@@ -73,7 +80,7 @@ export default function Dashboard() {
     (o) => o.id && o.product && o.deadline
   );
 
-  // Создание проекта с сохранением в БД
+  // Создание проекта с повторной загрузкой списка
   const handleCreateProject = async (e) => {
     e.preventDefault();
     if (
@@ -90,15 +97,11 @@ export default function Dashboard() {
       const res = await fetch(API_URL, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          ...newOrder,
-          // executors можно добавить если нужно, либо удалить
-        }),
+        body: JSON.stringify(newOrder),
       });
       if (!res.ok) throw new Error("Ошибка сохранения!");
-      // получаем новые данные из БД
-      const saved = await res.json();
-      setOrders((prev) => [...prev, { ...newOrder, subOrders: [] }]);
+      // После успешного создания перезагружаем список проектов!
+      await fetchProjects();
       setShowCreateProject(false);
       setNewOrder({
         id: "",
@@ -175,8 +178,6 @@ export default function Dashboard() {
           ) : (
             visibleOrders.map((order) => (
               <div key={order.id} className="space-y-0">
-                {/* ... остальной твой код ... */}
-                {/* Сюда вставь твою табличку как выше */}
                 <div
                   className="flex flex-row w-full rounded-t-2xl overflow-hidden"
                   style={{

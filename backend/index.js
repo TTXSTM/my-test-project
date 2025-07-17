@@ -46,15 +46,16 @@ app.get("/api/suborders/:project_id", (req, res) => {
   );
 });
 
-// Добавить подзаказ
+// Добавить подзаказ (id теперь не нужен во входных данных!)
 app.post("/api/suborders", (req, res) => {
-  const { id, project_id, product, startDate, deadline, responsible, progress } = req.body;
+  const { project_id, product, startDate, deadline, responsible, progress } = req.body;
   db.query(
-    "INSERT INTO suborders (id, project_id, product, startDate, deadline, responsible, progress) VALUES (?, ?, ?, ?, ?, ?, ?)",
-    [id, project_id, product, startDate, deadline, responsible, progress || 0],
-    (err) => {
+    "INSERT INTO suborders (project_id, product, startDate, deadline, responsible, progress) VALUES (?, ?, ?, ?, ?, ?)",
+    [project_id, product, startDate, deadline, responsible, progress || 0],
+    (err, results) => {
       if (err) return res.status(500).json({ error: err });
-      res.json({ success: true });
+      // Возвращаем сгенерированный id
+      res.json({ success: true, id: results.insertId });
     }
   );
 });

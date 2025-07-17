@@ -1,6 +1,5 @@
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import { useParams, useNavigate, Link } from "react-router-dom";
-import { useOrders } from "../OrdersContext";
 import Sidebar from "../Sidebar";
 
 const getProgressGradient = () =>
@@ -25,61 +24,90 @@ function ProgressBar({ percent }) {
   );
 }
 
+const API_PROJECTS = "http://localhost:3001/api/projects";
+const API_SUBORDERS = "http://localhost:3001/api/suborders";
+
 export default function ProjectPage() {
   const { id } = useParams();
   const navigate = useNavigate();
-  const { orders, setOrders } = useOrders();
 
-  // Состояние боковой навигации (для Sidebar)
-  const [navOpen, setNavOpen] = useState(false);
-
-  const orderIdx = orders.findIndex((o) => o.id === id);
-  const order = orders[orderIdx];
+  // Данные проекта и подзаказов из базы
+  const [project, setProject] = useState(null);
+  const [subOrders, setSubOrders] = useState([]);
+  const [loading, setLoading] = useState(true);
 
   const [showCreateSubOrder, setShowCreateSubOrder] = useState(false);
   const [newSubOrder, setNewSubOrder] = useState({
-    id: "",
     product: "",
     startDate: "",
     deadline: "",
     responsible: "",
+    executors: "",
   });
 
-  // Только цифры для id
-  function handleIdChange(e) {
-    const val = e.target.value.replace(/\D/g, "");
-    setNewSubOrder((o) => ({ ...o, id: val }));
-  }
+  // Загрузка проекта и подзаказов при монтировании
+  useEffect(() => {
+    async function fetchData() {
+      setLoading(true);
+      // Получаем все проекты (или можно отдельный по id, если есть API)
+      const projRes = await fetch(API_PROJECTS);
+      const projects = await projRes.json();
+      const found = projects.find((p) => String(p.id) === String(id));
+      setProject(found);
 
-  function handleCreateSubOrder(e) {
+      if (found) {
+        const subsRes = await fetch(API_SUBORDERS + "/" + found.id);
+        setSubOrders(await subsRes.json());
+      } else {
+        setSubOrders([]);
+      }
+      setLoading(false);
+    }
+    fetchData();
+  }, [id]);
+
+  // Добавление подзаказа с записью в базу (id не передаём!)
+  async function handleCreateSubOrder(e) {
     e.preventDefault();
-    setOrders((prevOrders) =>
-      prevOrders.map((ord, idx) =>
-        idx === orderIdx
-          ? {
-              ...ord,
-              subOrders: [
-                ...(ord.subOrders || []),
-                {
-                  ...newSubOrder,
-                  progress: 0,
-                },
-              ],
-            }
-          : ord
-      )
-    );
-    setNewSubOrder({
-      id: "",
-      product: "",
-      startDate: "",
-      deadline: "",
-      responsible: "",
-    });
-    setShowCreateSubOrder(false);
+    try {
+      const body = {
+        ...newSubOrder,
+        project_id: id,
+        progress: 0,
+      };
+      const res = await fetch(API_SUBORDERS, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(body),
+      });
+      if (!res.ok) throw new Error("Ошибка записи подзаказа!");
+
+      // Перезагружаем список подзаказов
+      const subsRes = await fetch(API_SUBORDERS + "/" + id);
+      setSubOrders(await subsRes.json());
+
+      setNewSubOrder({
+        product: "",
+        startDate: "",
+        deadline: "",
+        responsible: "",
+        executors: "",
+      });
+      setShowCreateSubOrder(false);
+    } catch (err) {
+      alert("Ошибка при сохранении подзаказа: " + err.message);
+    }
   }
 
-  if (!order) {
+  // Проверка загрузки и существования проекта
+  if (loading)
+    return (
+      <div className="min-h-screen bg-[#262537] text-white flex flex-col justify-center items-center">
+        <div className="mb-4 text-2xl">Загрузка...</div>
+      </div>
+    );
+
+  if (!project) {
     return (
       <div className="min-h-screen bg-[#262537] text-white flex flex-col justify-center items-center">
         <div className="mb-4 text-2xl">Проект не найден</div>
@@ -95,12 +123,10 @@ export default function ProjectPage() {
 
   // --- ПРОГРЕСС проекта по подзаказам
   const projectProgress =
-    order.subOrders && order.subOrders.length
+    subOrders && subOrders.length
       ? Math.round(
-          order.subOrders.reduce(
-            (sum, s) => sum + (Number(s.progress) || 0),
-            0
-          ) / order.subOrders.length
+          subOrders.reduce((sum, s) => sum + (Number(s.progress) || 0), 0) /
+            subOrders.length
         )
       : 0;
 
@@ -108,110 +134,118 @@ export default function ProjectPage() {
     <div className="min-h-screen bg-[#262537] flex flex-col md:flex-row font-['Inter']">
       {/* Sidebar */}
       <Sidebar
-        navOpen={navOpen}
-        setNavOpen={setNavOpen}
+        navOpen={false}
+        setNavOpen={() => {}}
         progressPercent={projectProgress}
       />
 
       {/* --- Модалка добавления подзаказа --- */}
       {showCreateSubOrder && (
-  <div className="fixed inset-0 z-50 bg-black/40 flex items-center justify-center">
-    <form
-      onSubmit={handleCreateSubOrder}
-      className="bg-[#252433] p-8 rounded-3xl w-[700px] max-w-[96vw] flex flex-col gap-0 border border-[#83799b] shadow-2xl relative"
-      style={{
-        borderTopRightRadius: "18px",
-        borderTopLeftRadius: "18px",
-        borderBottomRightRadius: "24px",
-        borderBottomLeftRadius: "24px",
-      }}
-    >
-      <div className="text-center text-white font-semibold text-base tracking-wide mb-2">Номер заказа</div>
-      <div className="flex justify-center mb-3">
-        <input
-          className="rounded-lg px-4 py-2 bg-[#292648]/60 text-white border border-[#83799b] focus:outline-none w-60 text-center shadow"
-          value={newSubOrder.id}
-          onChange={handleIdChange}
-          required
-          inputMode="numeric"
-          pattern="[0-9]*"
-          maxLength={8}
-          title="Введите только цифры"
-        />
-      </div>
-
-      <div className="text-center text-white font-semibold text-base tracking-wide mb-2 mt-3">Наименование заказа</div>
-      <div className="flex mb-6">
-        <input
-          className="rounded-lg px-4 py-2 bg-[#292648]/60 text-white border border-[#83799b] focus:outline-none w-full shadow"
-          value={newSubOrder.product}
-          onChange={e => setNewSubOrder(o => ({ ...o, product: e.target.value }))}
-          required
-        />
-      </div>
-
-      <div className="flex gap-5 mb-6">
-        <div className="flex-1">
-          <div className="text-white text-sm font-medium mb-1">Ответственный</div>
-          <input
-            className="rounded-lg px-4 py-2 bg-[#292648]/60 text-white border border-[#83799b] focus:outline-none w-full shadow"
-            value={newSubOrder.responsible}
-            onChange={e => setNewSubOrder(o => ({ ...o, responsible: e.target.value }))}
-            required
-          />
+        <div className="fixed inset-0 z-50 bg-black/40 flex items-center justify-center">
+          <form
+            onSubmit={handleCreateSubOrder}
+            className="bg-[#252433] p-8 rounded-3xl w-[700px] max-w-[96vw] flex flex-col gap-0 border border-[#83799b] shadow-2xl relative"
+          >
+            <div className="text-center text-white font-semibold text-base tracking-wide mb-2 mt-3">
+              Наименование заказа
+            </div>
+            <div className="flex mb-6">
+              <input
+                className="rounded-lg px-4 py-2 bg-[#292648]/60 text-white border border-[#83799b] focus:outline-none w-full shadow"
+                value={newSubOrder.product}
+                onChange={e =>
+                  setNewSubOrder((o) => ({ ...o, product: e.target.value }))
+                }
+                required
+              />
+            </div>
+            <div className="flex gap-5 mb-6">
+              <div className="flex-1">
+                <div className="text-white text-sm font-medium mb-1">
+                  Ответственный
+                </div>
+                <input
+                  className="rounded-lg px-4 py-2 bg-[#292648]/60 text-white border border-[#83799b] focus:outline-none w-full shadow"
+                  value={newSubOrder.responsible}
+                  onChange={e =>
+                    setNewSubOrder((o) => ({
+                      ...o,
+                      responsible: e.target.value,
+                    }))
+                  }
+                  required
+                />
+              </div>
+              <div className="flex-1">
+                <div className="text-white text-sm font-medium mb-1 text-right">
+                  Исполнители
+                </div>
+                <input
+                  className="rounded-lg px-4 py-2 bg-[#292648]/60 text-white border border-[#83799b] focus:outline-none w-full shadow"
+                  value={newSubOrder.executors || ""}
+                  onChange={e =>
+                    setNewSubOrder((o) => ({
+                      ...o,
+                      executors: e.target.value,
+                    }))
+                  }
+                />
+              </div>
+            </div>
+            <div className="flex gap-5">
+              <div className="flex-1">
+                <div className="text-white text-sm font-medium mb-1">
+                  Взять в работу
+                </div>
+                <input
+                  className="rounded-lg px-4 py-2 bg-[#292648]/60 text-white border border-[#83799b] focus:outline-none w-full shadow"
+                  type="date"
+                  value={newSubOrder.startDate}
+                  onChange={e =>
+                    setNewSubOrder((o) => ({
+                      ...o,
+                      startDate: e.target.value,
+                    }))
+                  }
+                  required
+                />
+              </div>
+              <div className="flex-1">
+                <div className="text-white text-sm font-medium mb-1 text-right">
+                  Дата завершения
+                </div>
+                <input
+                  className="rounded-lg px-4 py-2 bg-[#292648]/60 text-white border border-[#83799b] focus:outline-none w-full shadow"
+                  type="date"
+                  value={newSubOrder.deadline}
+                  onChange={e =>
+                    setNewSubOrder((o) => ({
+                      ...o,
+                      deadline: e.target.value,
+                    }))
+                  }
+                  required
+                />
+              </div>
+            </div>
+            <div className="flex justify-end gap-2 mt-7">
+              <button
+                type="submit"
+                className="bg-violet-700 hover:bg-violet-800 text-white rounded px-7 py-2 text-base shadow font-medium"
+              >
+                Добавить
+              </button>
+              <button
+                type="button"
+                className="text-gray-400 hover:text-red-400 text-base"
+                onClick={() => setShowCreateSubOrder(false)}
+              >
+                Отмена
+              </button>
+            </div>
+          </form>
         </div>
-        <div className="flex-1">
-          <div className="text-white text-sm font-medium mb-1 text-right">Исполнители</div>
-          <input
-            className="rounded-lg px-4 py-2 bg-[#292648]/60 text-white border border-[#83799b] focus:outline-none w-full shadow"
-            value={newSubOrder.executors || ""}
-            onChange={e => setNewSubOrder(o => ({ ...o, executors: e.target.value }))}
-          />
-        </div>
-      </div>
-
-      <div className="flex gap-5">
-        <div className="flex-1">
-          <div className="text-white text-sm font-medium mb-1">Взять в работу</div>
-          <input
-            className="rounded-lg px-4 py-2 bg-[#292648]/60 text-white border border-[#83799b] focus:outline-none w-full shadow"
-            type="date"
-            value={newSubOrder.startDate}
-            onChange={e => setNewSubOrder(o => ({ ...o, startDate: e.target.value }))}
-            required
-          />
-        </div>
-        <div className="flex-1">
-          <div className="text-white text-sm font-medium mb-1 text-right">Дата завершения</div>
-          <input
-            className="rounded-lg px-4 py-2 bg-[#292648]/60 text-white border border-[#83799b] focus:outline-none w-full shadow"
-            type="date"
-            value={newSubOrder.deadline}
-            onChange={e => setNewSubOrder(o => ({ ...o, deadline: e.target.value }))}
-            required
-          />
-        </div>
-      </div>
-
-      <div className="flex justify-end gap-2 mt-7">
-        <button
-          type="submit"
-          className="bg-violet-700 hover:bg-violet-800 text-white rounded px-7 py-2 text-base shadow font-medium"
-        >
-          Добавить
-        </button>
-        <button
-          type="button"
-          className="text-gray-400 hover:text-red-400 text-base"
-          onClick={() => setShowCreateSubOrder(false)}
-        >
-          Отмена
-        </button>
-      </div>
-    </form>
-  </div>
       )}
-
 
       <main className="flex-1 py-10 px-2 md:px-10 bg-[#262537] min-h-screen">
         <div className="mx-auto w-full">
@@ -263,24 +297,24 @@ export default function ProjectPage() {
               }}
             >
               <div className="flex-1 py-4 px-6 bg-transparent text-white text-base font-mono flex items-center">
-                № {order.id}
+                № {project.id}
               </div>
               <div className="flex-[2.2] py-4 px-6 bg-transparent text-white flex flex-col justify-center leading-tight">
                 <div
                   className="font-normal text-[1.05rem]"
                   style={{ lineHeight: "1.18" }}
                 >
-                  {order.product}
+                  {project.product}
                 </div>
               </div>
               <div className="flex-1 py-4 px-6 bg-transparent text-white text-base flex items-center">
-                {order.startDate}
+                {project.startDate}
               </div>
               <div className="flex-1 py-4 px-6 bg-transparent text-white text-base flex items-center">
-                {order.deadline}
+                {project.deadline}
               </div>
               <div className="flex-1 py-4 px-6 bg-transparent text-white text-base flex items-center">
-                {order.responsible}
+                {project.responsible}
               </div>
               <div className="flex-[1.2] py-2 px-6 bg-transparent flex items-center justify-center">
                 <div
@@ -329,24 +363,41 @@ export default function ProjectPage() {
 
           {/* --- Список подзаказов --- */}
           <div className="flex flex-col gap-4 w-full">
-            {order.subOrders && order.subOrders.length > 0 ? (
-              order.subOrders.map((sub) => (
+            {subOrders && subOrders.length > 0 ? (
+              subOrders.map((sub) => (
                 <div key={sub.id} className="flex flex-col w-full">
                   {/* Header */}
                   <div className="flex bg-[#746487] text-white text-[15px] font-medium rounded-t-lg overflow-hidden">
-                    <div className="flex-1 py-2 px-3 text-center">№ заказа</div>
-                    <div className="flex-[2.3] py-2 px-3 text-center">Наименование заказа</div>
-                    <div className="flex-1 py-2 px-3 text-center">Дата начала</div>
-                    <div className="flex-1 py-2 px-3 text-center">Дедлайн</div>
-                    <div className="flex-1 py-2 px-3 text-center">Исполнитель</div>
-                    <div className="flex-1 py-2 px-3 text-center">Прогресс</div>
+                    <div className="flex-1 py-2 px-3 text-center">
+                      № заказа
+                    </div>
+                    <div className="flex-[2.3] py-2 px-3 text-center">
+                      Наименование заказа
+                    </div>
+                    <div className="flex-1 py-2 px-3 text-center">
+                      Дата начала
+                    </div>
+                    <div className="flex-1 py-2 px-3 text-center">
+                      Дедлайн
+                    </div>
+                    <div className="flex-1 py-2 px-3 text-center">
+                      Исполнитель
+                    </div>
+                    <div className="flex-1 py-2 px-3 text-center">
+                      Прогресс
+                    </div>
                   </div>
                   {/* Row */}
                   <div className="flex bg-[#f2f2f2] rounded-b-lg overflow-hidden min-h-[38px]">
                     <Link
                       to={`/order/${sub.id}`}
                       className="flex-1 py-2 px-3 text-center text-black font-bold underline hover:text-violet-600"
-                      style={{ textDecorationThickness: "2px", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}
+                      style={{
+                        textDecorationThickness: "2px",
+                        whiteSpace: "nowrap",
+                        overflow: "hidden",
+                        textOverflow: "ellipsis",
+                      }}
                       title={sub.id}
                     >
                       {sub.id}
@@ -362,15 +413,39 @@ export default function ProjectPage() {
                     >
                       {sub.product}
                     </div>
-                    <div className="flex-1 py-2 px-3 text-center text-black" style={{
-                        whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis"
-                      }} title={sub.startDate}>{sub.startDate}</div>
-                    <div className="flex-1 py-2 px-3 text-center text-black" style={{
-                        whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis"
-                      }} title={sub.deadline}>{sub.deadline}</div>
-                    <div className="flex-1 py-2 px-3 text-center text-black" style={{
-                        whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis"
-                      }} title={sub.responsible}>{sub.responsible}</div>
+                    <div
+                      className="flex-1 py-2 px-3 text-center text-black"
+                      style={{
+                        whiteSpace: "nowrap",
+                        overflow: "hidden",
+                        textOverflow: "ellipsis",
+                      }}
+                      title={sub.startDate}
+                    >
+                      {sub.startDate}
+                    </div>
+                    <div
+                      className="flex-1 py-2 px-3 text-center text-black"
+                      style={{
+                        whiteSpace: "nowrap",
+                        overflow: "hidden",
+                        textOverflow: "ellipsis",
+                      }}
+                      title={sub.deadline}
+                    >
+                      {sub.deadline}
+                    </div>
+                    <div
+                      className="flex-1 py-2 px-3 text-center text-black"
+                      style={{
+                        whiteSpace: "nowrap",
+                        overflow: "hidden",
+                        textOverflow: "ellipsis",
+                      }}
+                      title={sub.responsible}
+                    >
+                      {sub.responsible}
+                    </div>
                     <div className="flex-1 py-2 px-3 flex items-center justify-center">
                       <ProgressBar percent={Number(sub.progress) || 0} />
                     </div>
