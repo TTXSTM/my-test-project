@@ -115,101 +115,103 @@ export default function ProjectPage() {
 
       {/* --- Модалка добавления подзаказа --- */}
       {showCreateSubOrder && (
-        <div className="fixed inset-0 z-50 bg-black/40 flex items-center justify-center">
-          <form
-            onSubmit={handleCreateSubOrder}
-            className="bg-[#1c1a29] border-2 border-violet-500 rounded-2xl px-7 py-8 w-[1000px] flex flex-col gap-4 shadow-2xl"
-            style={{ fontFamily: "Inter, sans-serif" }}
-          >
-            <h2 className="text-xl text-white font-semibold mb-1">
-              Добавить заказ
-            </h2>
-            <label className="text-slate-300 text-base">
-              № заказа
-              <input
-                className="mt-1 rounded px-3 py-2 bg-slate-700 text-white w-full outline-none"
-                value={newSubOrder.id}
-                onChange={handleIdChange}
-                required
-                inputMode="numeric"
-                pattern="[0-9]*"
-                maxLength={8}
-                title="Введите только цифры"
-              />
-            </label>
-            <label className="text-slate-300 text-base">
-              Наименование заказа
-              <input
-                className="mt-1 rounded px-3 py-2 bg-slate-700 text-white w-full outline-none"
-                value={newSubOrder.product}
-                onChange={(e) =>
-                  setNewSubOrder((o) => ({ ...o, product: e.target.value }))
-                }
-                required
-              />
-            </label>
-            <label className="text-slate-300 text-base">
-              Дата начала
-              <input
-                type="date"
-                className="mt-1 rounded px-3 py-2 bg-slate-700 text-white w-full outline-none"
-                value={newSubOrder.startDate}
-                onChange={(e) =>
-                  setNewSubOrder((o) => ({
-                    ...o,
-                    startDate: e.target.value,
-                  }))
-                }
-                required
-              />
-            </label>
-            <label className="text-slate-300 text-base">
-              Дедлайн
-              <input
-                type="date"
-                className="mt-1 rounded px-3 py-2 bg-slate-700 text-white w-full outline-none"
-                value={newSubOrder.deadline}
-                onChange={(e) =>
-                  setNewSubOrder((o) => ({
-                    ...o,
-                    deadline: e.target.value,
-                  }))
-                }
-                required
-              />
-            </label>
-            <label className="text-slate-300 text-base">
-              Исполнитель
-              <input
-                className="mt-1 rounded px-3 py-2 bg-slate-700 text-white w-full outline-none"
-                value={newSubOrder.responsible}
-                onChange={(e) =>
-                  setNewSubOrder((o) => ({
-                    ...o,
-                    responsible: e.target.value,
-                  }))
-                }
-                required
-              />
-            </label>
-            <div className="flex gap-2 mt-2">
-              <button
-                type="submit"
-                className="bg-violet-700 hover:bg-violet-800 transition text-white rounded py-2 flex-1"
-              >
-                Добавить
-              </button>
-              <button
-                type="button"
-                className="text-slate-400 hover:text-red-400 hover:bg-[#191725] rounded flex-1"
-                onClick={() => setShowCreateSubOrder(false)}
-              >
-                Отмена
-              </button>
-            </div>
-          </form>
+  <div className="fixed inset-0 z-50 bg-black/40 flex items-center justify-center">
+    <form
+      onSubmit={handleCreateSubOrder}
+      className="bg-[#252433] p-8 rounded-3xl w-[700px] max-w-[96vw] flex flex-col gap-0 border border-[#83799b] shadow-2xl relative"
+      style={{
+        borderTopRightRadius: "18px",
+        borderTopLeftRadius: "18px",
+        borderBottomRightRadius: "24px",
+        borderBottomLeftRadius: "24px",
+      }}
+    >
+      <div className="text-center text-white font-semibold text-base tracking-wide mb-2">Номер заказа</div>
+      <div className="flex justify-center mb-3">
+        <input
+          className="rounded-lg px-4 py-2 bg-[#292648]/60 text-white border border-[#83799b] focus:outline-none w-60 text-center shadow"
+          value={newSubOrder.id}
+          onChange={handleIdChange}
+          required
+          inputMode="numeric"
+          pattern="[0-9]*"
+          maxLength={8}
+          title="Введите только цифры"
+        />
+      </div>
+
+      <div className="text-center text-white font-semibold text-base tracking-wide mb-2 mt-3">Наименование заказа</div>
+      <div className="flex mb-6">
+        <input
+          className="rounded-lg px-4 py-2 bg-[#292648]/60 text-white border border-[#83799b] focus:outline-none w-full shadow"
+          value={newSubOrder.product}
+          onChange={e => setNewSubOrder(o => ({ ...o, product: e.target.value }))}
+          required
+        />
+      </div>
+
+      <div className="flex gap-5 mb-6">
+        <div className="flex-1">
+          <div className="text-white text-sm font-medium mb-1">Ответственный</div>
+          <input
+            className="rounded-lg px-4 py-2 bg-[#292648]/60 text-white border border-[#83799b] focus:outline-none w-full shadow"
+            value={newSubOrder.responsible}
+            onChange={e => setNewSubOrder(o => ({ ...o, responsible: e.target.value }))}
+            required
+          />
         </div>
+        <div className="flex-1">
+          <div className="text-white text-sm font-medium mb-1 text-right">Исполнители</div>
+          <input
+            className="rounded-lg px-4 py-2 bg-[#292648]/60 text-white border border-[#83799b] focus:outline-none w-full shadow"
+            value={newSubOrder.executors || ""}
+            onChange={e => setNewSubOrder(o => ({ ...o, executors: e.target.value }))}
+          />
+        </div>
+      </div>
+
+      <div className="flex gap-5">
+        <div className="flex-1">
+          <div className="text-white text-sm font-medium mb-1">Взять в работу</div>
+          <input
+            className="rounded-lg px-4 py-2 bg-[#292648]/60 text-white border border-[#83799b] focus:outline-none w-full shadow"
+            type="date"
+            value={newSubOrder.startDate}
+            onChange={e => setNewSubOrder(o => ({ ...o, startDate: e.target.value }))}
+            required
+          />
+        </div>
+        <div className="flex-1">
+          <div className="text-white text-sm font-medium mb-1 text-right">Дата завершения</div>
+          <input
+            className="rounded-lg px-4 py-2 bg-[#292648]/60 text-white border border-[#83799b] focus:outline-none w-full shadow"
+            type="date"
+            value={newSubOrder.deadline}
+            onChange={e => setNewSubOrder(o => ({ ...o, deadline: e.target.value }))}
+            required
+          />
+        </div>
+      </div>
+
+      <div className="flex justify-end gap-2 mt-7">
+        <button
+          type="submit"
+          className="bg-violet-700 hover:bg-violet-800 text-white rounded px-7 py-2 text-base shadow font-medium"
+        >
+          Добавить
+        </button>
+        <button
+          type="button"
+          className="text-gray-400 hover:text-red-400 text-base"
+          onClick={() => setShowCreateSubOrder(false)}
+        >
+          Отмена
+        </button>
+      </div>
+    </form>
+  </div>
       )}
+
 
       <main className="flex-1 py-10 px-2 md:px-10 bg-[#262537] min-h-screen">
         <div className="mx-auto w-full">
