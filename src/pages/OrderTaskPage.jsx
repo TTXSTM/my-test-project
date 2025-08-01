@@ -1,10 +1,14 @@
-import React, { useState, useRef, useEffect } from "react";
+import React, { useEffect, useState, useRef } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import * as XLSX from "xlsx";
-import { useOrders } from "../OrdersContext";
 import Sidebar from "../Sidebar";
 
-// ===== МАРШРУТЫ =====
+const API_PROJECTS = "http://85.198.82.194:3001/api/projects";
+const API_SUBORDER = "http://85.198.82.194:3001/api/suborder";
+const API_SPEC = "http://85.198.82.194:3001/api/spec";
+const API_SPEC_ROW = "http://85.198.82.194:3001/api/specrow";
+const API_ORDERS = "http://85.198.82.194:3001/api/orders";
+
 const MARSHRUTS = [
   { id: 1, name: "Маршрут листового металла № 1", stations: [
     'Станция 1 - Лазер HFR “С1-Л”',
@@ -21,30 +25,31 @@ const MARSHRUTS = [
   ]},
 ];
 
-// ===== СТАТУСЫ =====
+const initialColumns = [
+  { key: "partNum", title: "П.Н детали", className: "text-center", width: 110 },
+  { key: "name", title: "Наименование", className: "text-center", width: 170 },
+  { key: "code", title: "Обозначение", className: "text-center", width: 130 },
+  { key: "material", title: "Материал", className: "text-left", width: 170 },
+  { key: "count", title: "Кол-во по зад.", className: "text-center", width: 90 },
+  { key: "made", title: "Изготовил", className: "text-center", width: 100 },
+  { key: "cell", title: "Маршрут", className: "text-center", width: 110 },
+  { key: "status", title: "Статус", className: "text-center", width: 120 },
+  { key: "taskId", title: "Задание", className: "text-center", width: 140 },
+];
+
 function StatusCell({ value, onChange, disabled }) {
-  let bg = "#181870";
-  let color = "#fff";
+  let bg = "#181870", color = "#fff";
   if (value === "Готово") { bg = "#17b528"; color = "#fff"; }
   else if (value === "Делать") { bg = "#c7c754"; color = "#222"; }
   else if (value === "В работе") { bg = "#181870"; color = "#fff"; }
   else if (value === "Открыт") { bg = "#393943"; color = "#fff"; }
   else if (value === "Закрыт") { bg = "#393943"; color = "#fff"; }
-
   return (
     <select
       style={{
-        background: bg,
-        color,
-        fontWeight: 600,
-        fontSize: 16,
-        border: "none",
-        outline: "none",
-        borderRadius: 0,
-        width: "100%",
-        padding: "7px 0",
-        textAlign: "center",
-        transition: "background 0.2s",
+        background: bg, color, fontWeight: 600, fontSize: 16,
+        border: "none", outline: "none", borderRadius: 0,
+        width: "100%", padding: "7px 0", textAlign: "center", transition: "background 0.2s"
       }}
       value={value}
       onChange={onChange}
@@ -59,281 +64,265 @@ function StatusCell({ value, onChange, disabled }) {
   );
 }
 
-// ===== ПРОГРЕСС =====
-function calcSubOrderProgress(mainRows, uploadedBatches) {
-  let total = 0, ready = 0;
-  for (const row of mainRows) {
-    if (row.count) total++;
-    if (row.status === "Готово") ready++;
-  }
-  for (const batch of uploadedBatches) {
-    for (const row of batch.rows) {
-      if (row.count) total++;
-      if (row.status === "Готово") ready++;
-    }
-  }
-  if (total === 0) return 0;
-  return Math.round((ready / total) * 100);
-}
-
-// ===== КОНФИГ КОЛОНОК =====
-const initialColumns = [
-  {
-    key: "partNum",
-    title: "П.Н детали",
-    render: row => row.partNum,
-    className: "text-center",
-    width: 110,
-  },
-  {
-    key: "name",
-    title: "Наименование",
-    render: row => row.name,
-    className: "text-center",
-    width: 170,
-  },
-  {
-    key: "code",
-    title: "Обозначение",
-    render: row => row.code,
-    className: "text-center",
-    width: 130,
-  },
-  {
-    key: "material",
-    title: "Материал",
-    render: row => <span className="text-xs text-left">{row.material}</span>,
-    className: "text-left",
-    width: 170,
-  },
-  {
-    key: "count",
-    title: "Кол-во по зад.",
-    render: row => row.count,
-    className: "text-center",
-    width: 90,
-  },
-  {
-    key: "made",
-    title: "Изготовил",
-    render: (row, idx, ready, handleRowEditMain) => (
-      <input
-        type="number"
-        min="0"
-        step="1"
-        pattern="[0-9]*"
-        className="w-16 bg-transparent border-b border-violet-400 text-white text-center outline-none"
-        value={row.made}
-        onChange={e => handleRowEditMain(idx, "made", e.target.value.replace(/[^0-9]/g, ""))}
-        placeholder=""
-        disabled={ready}
-      />
-    ),
-    className: "text-center",
-    width: 100,
-  },
-  {
-    key: "cell",
-    title: "Маршрут",
-    render: (row, idx, _ready, _handleRowEditMain, handleCellClick, isGlobalDragHighlighted, dragGlobal) => (
-      <div
-        className={
-          "underline cursor-pointer relative group py-2 px-2 " +
-          (isGlobalDragHighlighted('main', null, idx) ? " bg-violet-900/60" : "")
-        }
-        onClick={() => handleCellClick('main', null, idx)}
-      >
-        {row.cell}
-        {row.cell !== "-" && (
-          <span
-            className="absolute right-1 bottom-1 w-4 h-4 rounded bg-violet-600 flex items-center justify-center text-xs text-white shadow group-hover:scale-110 group-hover:bg-violet-500 cursor-row-resize select-none"
-            style={{
-              cursor: "ns-resize",
-              border: "2px solid #fff",
-              fontWeight: "bold",
-              fontSize: "12px",
-              zIndex: 10,
-            }}
-            onMouseDown={e => dragGlobal.handleGlobalDragStart('main', null, idx, row.cell, e)}
-            title="Протянуть вниз (drag-and-drop)"
-          >↡</span>
-        )}
-      </div>
-    ),
-    className: "text-center",
-    width: 110,
-  },
-  {
-    key: "status",
-    title: "Статус",
-    render: (row, idx, ready, handleRowEditMain) => (
-      <StatusCell
-        value={ready ? "Готово" : (row.status || "")}
-        onChange={e => handleRowEditMain(idx, "status", e.target.value)}
-        disabled={ready}
-      />
-    ),
-    className: "text-center",
-    width: 120,
-  },
-  {
-    key: "taskId",
-    title: "Задание",
-    render: (row, idx, _ready, _handleRowEditMain, _handleCellClick, _isGlobalDragHighlighted, _dragGlobal, navigate) => (
-      <button
-        className="underline text-indigo-300 hover:text-violet-400 transition"
-        onClick={() => navigate(`/order/${row.taskId}`)}
-      >
-        {row.taskId}
-      </button>
-    ),
-    className: "text-center",
-    width: 100,
-  },
-];
-
 export default function OrderTaskPage() {
   const { taskId } = useParams();
   const navigate = useNavigate();
-  const { orders, setOrders } = useOrders();
-  const [navOpen, setNavOpen] = useState(false);
 
-  const project = orders.find(order =>
-    order.subOrders && order.subOrders.some(sub => sub.id === taskId)
-  );
-  const subOrder = project
-    ? project.subOrders.find(sub => sub.id === taskId)
-    : null;
-
-  const [mainRows, setMainRows] = useState([]);
+  const [subOrder, setSubOrder] = useState(null);
+  const [project, setProject] = useState(null);
+  const [loading, setLoading] = useState(true);
   const [uploadedBatches, setUploadedBatches] = useState([]);
   const fileInputRef = useRef();
 
-  // --- drag&drop для колонок ---
-  const [columns, setColumns] = useState(initialColumns);
-  const [draggedColIdx, setDraggedColIdx] = useState(null);
-
-  function onColDragStart(idx) {
-    setDraggedColIdx(idx);
-  }
-  function onColDragOver(idx, e) {
-    e.preventDefault();
-  }
+  const [columns, setColumns] = useState(() => {
+    try {
+      const saved = localStorage.getItem("orderTaskColumns");
+      if (saved) {
+        const order = JSON.parse(saved);
+        return order
+          .map(key => initialColumns.find(col => col.key === key))
+          .filter(Boolean)
+          .concat(initialColumns.filter(col => !order.includes(col.key)));
+      }
+    } catch {}
+    return initialColumns;
+  });
+  const [dragColIdx, setDragColIdx] = useState(null);
+  function onColDragStart(idx) { setDragColIdx(idx); }
+  function onColDragOver(idx, e) { e.preventDefault(); }
   function onColDrop(idx) {
-    if (draggedColIdx === null || draggedColIdx === idx) return;
+    if (dragColIdx === null || dragColIdx === idx) return;
     const newCols = [...columns];
-    const [dragged] = newCols.splice(draggedColIdx, 1);
+    const [dragged] = newCols.splice(dragColIdx, 1);
     newCols.splice(idx, 0, dragged);
     setColumns(newCols);
-    setDraggedColIdx(null);
+    setDragColIdx(null);
+    localStorage.setItem("orderTaskColumns", JSON.stringify(newCols.map(col => col.key)));
   }
+  function onColDragEnd() { setDragColIdx(null); }
 
-  // DRAG-FILL
+  // Состояние таблицы
+  const [tableRows, setTableRows] = useState({});
   const [dragGlobal, setDragGlobal] = useState({
-    active: false,
-    from: null,
-    to: null,
-    value: null,
-    handleGlobalDragStart: handleGlobalDragStart,
+    active: false, from: null, to: null, value: null,
   });
-  function handleGlobalDragStart(type, batchIdx, rowIdx, value, e) {
+
+  // Для создания задания
+  const [createdRows, setCreatedRows] = useState({});
+  const [showOrderDialog, setShowOrderDialog] = useState(false);
+  const [orderDesc, setOrderDesc] = useState("");
+  const [creatingOrder, setCreatingOrder] = useState(false);
+  const [orderError, setOrderError] = useState("");
+
+  // Для множественного выбора
+  const [selectedRows, setSelectedRows] = useState([]);
+
+  // Маршруты и модалки
+  const [routeSelectOpen, setRouteSelectOpen] = useState(false);
+  const [selectedRoute, setSelectedRoute] = useState(null);
+  const [showStations, setShowStations] = useState(false);
+  const [clickedCell, setClickedCell] = useState(null);
+
+  // Загрузка проекта и спецификации
+  useEffect(() => {
+    async function fetchAll() {
+      setLoading(true);
+      const suborderRes = await fetch(`${API_SUBORDER}/${taskId}`);
+      const sub = await suborderRes.json();
+      setSubOrder(sub);
+
+      let proj = null;
+      if (sub) {
+        const projectsRes = await fetch(API_PROJECTS);
+        const projects = await projectsRes.json();
+        proj = projects.find(p => String(p.id) === String(sub.project_id));
+        setProject(proj);
+      } else {
+        setProject(null);
+      }
+
+      let batches = [];
+      if (sub) {
+        const batchRes = await fetch(`${API_SPEC}/${taskId}`);
+        batches = await batchRes.json();
+        setUploadedBatches(Array.isArray(batches) ? batches : []);
+      } else {
+        setUploadedBatches([]);
+      }
+      const allRows = {};
+      (batches || []).forEach(batch => batch.rows.forEach(row => {
+        allRows[row.id] = { ...row };
+      }));
+      setTableRows(allRows);
+      setLoading(false);
+    }
+    fetchAll();
+  }, [taskId]);
+
+  // Drag fill для cell
+  function handleGlobalDragStart(batchRows, rowIdx, value, e) {
     e.stopPropagation();
     setDragGlobal({
-      ...dragGlobal,
-      active: true,
-      from: { type, batchIdx, rowIdx },
-      to: { type, batchIdx, rowIdx },
-      value,
-      handleGlobalDragStart,
+      active: true, from: rowIdx, to: rowIdx, value, batchRows,
     });
     document.body.style.userSelect = "none";
   }
-  function handleGlobalDragOver(type, batchIdx, rowIdx) {
-    if (dragGlobal.active) {
-      setDragGlobal(drag => ({
-        ...drag,
-        to: { type, batchIdx, rowIdx }
-      }));
-    }
+  function handleGlobalDragOver(idx) {
+    if (dragGlobal.active) setDragGlobal(drag => ({ ...drag, to: idx }));
   }
   useEffect(() => {
-    function handleMouseUp() {
-      if (dragGlobal.active && dragGlobal.from && dragGlobal.to && dragGlobal.value !== null) {
-        // только mainRows
-        const allRows = mainRows.map((row, idx) => ({ type: 'main', batchIdx: null, rowIdx: idx }));
-        const startIdx = allRows.findIndex(
-          r => r.type === dragGlobal.from.type &&
-               r.batchIdx === dragGlobal.from.batchIdx &&
-               r.rowIdx === dragGlobal.from.rowIdx
-        );
-        const endIdx = allRows.findIndex(
-          r => r.type === dragGlobal.to.type &&
-               r.batchIdx === dragGlobal.to.batchIdx &&
-               r.rowIdx === dragGlobal.to.rowIdx
-        );
-        if (startIdx === -1 || endIdx === -1) {
-          setDragGlobal({ ...dragGlobal, active: false, from: null, to: null, value: null });
-          document.body.style.userSelect = "";
-          return;
+    async function handleMouseUp() {
+      if (dragGlobal.active && dragGlobal.from != null && dragGlobal.to != null && dragGlobal.value !== null) {
+        const { batchRows, from, to, value } = dragGlobal;
+        const [start, end] = [from, to].sort((a, b) => a - b);
+        const updated = { ...tableRows };
+        const patchRequests = [];
+        for (let i = start; i <= end; ++i) {
+          const row = batchRows[i];
+          if (row) {
+            updated[row.id] = { ...updated[row.id], cell: value };
+            patchRequests.push(
+              fetch(`${API_SPEC_ROW}/${row.id}`, {
+                method: "PATCH",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ ...updated[row.id], cell: value }),
+              })
+            );
+          }
         }
-        const [fromIdx, toIdx] = [startIdx, endIdx].sort((a, b) => a - b);
-        let newMainRows = [...mainRows];
-        for (let i = fromIdx; i <= toIdx; ++i) {
-          const r = allRows[i];
-          newMainRows[r.rowIdx] = { ...newMainRows[r.rowIdx], cell: dragGlobal.value };
-        }
-        setMainRows(newMainRows);
+        setTableRows(updated);
+        await Promise.all(patchRequests);
       }
-      setDragGlobal({ ...dragGlobal, active: false, from: null, to: null, value: null });
+      setDragGlobal({
+        active: false, from: null, to: null, value: null, batchRows: null,
+      });
       document.body.style.userSelect = "";
     }
     if (dragGlobal.active) {
       window.addEventListener("mouseup", handleMouseUp);
       return () => window.removeEventListener("mouseup", handleMouseUp);
     }
-  }, [dragGlobal, mainRows]);
+  }, [dragGlobal, tableRows]);
 
-  function isGlobalDragHighlighted(type, batchIdx, rowIdx) {
-    if (!dragGlobal.active || !dragGlobal.from || !dragGlobal.to) return false;
-    const allRows = mainRows.map((row, idx) => ({ type: 'main', batchIdx: null, rowIdx: idx }));
-    const startIdx = allRows.findIndex(
-      r => r.type === dragGlobal.from.type &&
-           r.batchIdx === dragGlobal.from.batchIdx &&
-           r.rowIdx === dragGlobal.from.rowIdx
+  function isGlobalDragHighlighted(idx) {
+    if (!dragGlobal.active || dragGlobal.from == null || dragGlobal.to == null) return false;
+    const [start, end] = [dragGlobal.from, dragGlobal.to].sort((a, b) => a - b);
+    return idx >= start && idx <= end;
+  }
+
+  // Мгновенное обновление строки
+  async function updateRow(rowId, newFields) {
+    setTableRows(prev => ({
+      ...prev, [rowId]: { ...prev[rowId], ...newFields },
+    }));
+    await fetch(`${API_SPEC_ROW}/${rowId}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ ...tableRows[rowId], ...newFields }),
+    });
+  }
+
+  // Обработчики редактирования ячеек
+  function handleCellEdit(rowId, field, value) {
+    let patch = { [field]: value };
+    if (field === "made") {
+      if (String(value) === String(tableRows[rowId].count))
+        patch.status = "Готово";
+      else if (tableRows[rowId].status === "Готово")
+        patch.status = "В работе";
+    }
+    if (field === "status" && value === "Готово") {
+      patch.made = tableRows[rowId].count;
+    }
+    updateRow(rowId, patch);
+  }
+
+  // --- Выделение по клику (множественный выбор) ---
+  function toggleRowSelected(rowId) {
+    setSelectedRows(selectedRows =>
+      selectedRows.includes(rowId)
+        ? selectedRows.filter(id => id !== rowId)
+        : [...selectedRows, rowId]
     );
-    const endIdx = allRows.findIndex(
-      r => r.type === dragGlobal.to.type &&
-           r.batchIdx === dragGlobal.to.batchIdx &&
-           r.rowIdx === dragGlobal.to.rowIdx
-    );
-    const meIdx = allRows.findIndex(
-      r => r.type === type && r.batchIdx === batchIdx && r.rowIdx === rowIdx
-    );
-    if (startIdx === -1 || endIdx === -1 || meIdx === -1) return false;
-    const [fromIdx, toIdx] = [startIdx, endIdx].sort((a, b) => a - b);
-    return meIdx >= fromIdx && meIdx <= toIdx;
+  }
+  function resetOrderSelection() {
+    setSelectedRows([]); setOrderDesc(""); setOrderError(""); setShowOrderDialog(false);
+  }
+
+  // --- Создание задания для выбранных строк ---
+  async function handleCreateOrder() {
+    if (!orderDesc.trim()) { setOrderError("Введите описание задания"); return; }
+    if (selectedRows.length === 0) return;
+    setCreatingOrder(true); setOrderError("");
+
+    // 1. Сначала подгружаем актуальные заказы!
+    const orders = await fetch(`${API_ORDERS}?project_id=${project.id}&order_id=${subOrder.id}`)
+      .then(r => r.json())
+      .catch(() => []);
+    const maxNum = orders.reduce((max, o) => Math.max(max, Number(o.seq_num || 0)), 0);
+    const seqNum = maxNum + 1;
+    const orderNumber = `${project.id}-${subOrder.id}-${seqNum}`;
+
+    // 2. Создаём задание с этим номером (backend обновляет taskId в spec_rows)
+    await fetch(API_ORDERS, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        project_id: project.id,
+        order_id: subOrder.id,
+        seq_num: seqNum,
+        order_number: orderNumber,
+        description: orderDesc,
+        row_ids: selectedRows,
+      }),
+    });
+
+    // 3. После создания обновить UI (без запроса можно так:)
+    const newCreated = {};
+    selectedRows.forEach(id => newCreated[id] = orderNumber);
+    setCreatedRows(prev => ({ ...prev, ...newCreated }));
+
+    setShowOrderDialog(false);
+    setOrderDesc("");
+    setCreatingOrder(false);
+    setSelectedRows([]);
+    alert("Создано задание: " + orderNumber);
+  }
+
+  // --- Выбор маршрута через модалку ---
+  function handleCellClick(rowId) {
+    setClickedCell(rowId); setRouteSelectOpen(true);
+  }
+  function handleChooseRoute(idx) {
+    setSelectedRoute(MARSHRUTS[idx]);
+    setRouteSelectOpen(false); setShowStations(true);
+  }
+  function handleStationsClose() {
+    if (selectedRoute && clickedCell) {
+      updateRow(clickedCell, {
+        cell: selectedRoute.id === 1 ? "МЛМ-1" : "МЛМ-2",
+      });
+    }
+    setShowStations(false); setSelectedRoute(null); setClickedCell(null);
   }
 
   // --- XLSX загрузка ---
   function findCol(headerArr, variants) {
     for (let i = 0; i < headerArr.length; ++i) {
       const val = String(headerArr[i]).trim().toLowerCase();
-      for (let variant of variants) {
-        if (val.includes(variant)) return i;
-      }
+      for (let variant of variants) if (val.includes(variant)) return i;
     }
     return -1;
   }
-  const handleUploadSpec = (e) => {
+  const handleUploadSpec = async (e) => {
     const file = e.target.files[0];
     if (!file) return;
     const reader = new FileReader();
-    reader.onload = evt => {
+    reader.onload = async evt => {
       const data = new Uint8Array(evt.target.result);
       const workbook = XLSX.read(data, { type: "array" });
       const sheet = workbook.Sheets[workbook.SheetNames[0]];
       const rows = XLSX.utils.sheet_to_json(sheet, { header: 1, defval: "" });
-
       const header = rows[0];
       const colIdx = {
         partNum: findCol(header, ["п.н", "пн", "детал"]),
@@ -343,12 +332,10 @@ export default function OrderTaskPage() {
         count: findCol(header, ["кол-во", "количество"]),
         taskId: findCol(header, ["задание", "id задания"]),
       };
-
       if (Object.values(colIdx).slice(0, 5).some(idx => idx === -1)) {
         alert("Некорректная спецификация: не найдены все нужные столбцы.\nПроверьте заголовки!");
         return;
       }
-
       const newRows = rows.slice(1)
         .filter(row => row[colIdx.partNum])
         .map(row => ({
@@ -362,163 +349,203 @@ export default function OrderTaskPage() {
           status: "В работе",
           taskId: colIdx.taskId !== -1 ? row[colIdx.taskId] : "",
         }));
-
-      setMainRows(newRows);
-      setUploadedBatches([]); // не используем батчи (если не нужно)
-      e.target.value = '';
+      await fetch(`${API_SPEC}/${taskId}`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ uploaded_by: "Тестовый пользователь", rows: newRows }),
+      });
+      const batchRes = await fetch(`${API_SPEC}/${taskId}`);
+      const batches = await batchRes.json();
+      setUploadedBatches(Array.isArray(batches) ? batches : []);
+      const allRows = {};
+      (batches || []).forEach(batch => batch.rows.forEach(row => {
+        allRows[row.id] = { ...row };
+      }));
+      setTableRows(allRows);
+      e.target.value = "";
     };
     reader.readAsArrayBuffer(file);
   };
 
-  function handleRowEditMain(rowIdx, field, value) {
-    setMainRows(prev => prev.map((row, idx) => {
-      let newRow = idx === rowIdx ? { ...row, [field]: value } : row;
-      if (idx === rowIdx && field === "made" && value !== undefined) {
-        if (String(value) === String(row.count)) newRow.status = "Готово";
-        else if (row.status === "Готово") newRow.status = "";
-      }
-      if (idx === rowIdx && field === "status" && value === "Готово") {
-        newRow.made = row.count;
-      }
-      return newRow;
-    }));
-  }
-
-  // === Маршрут (выбор/drag-fill) ===
-  const [routeSelectOpen, setRouteSelectOpen] = useState(false);
-  const [selectedRoute, setSelectedRoute] = useState(null);
-  const [showStations, setShowStations] = useState(false);
-  const [clicked, setClicked] = useState(null);
-
-  function handleCellClick(type, batchIdx, rowIdx) {
-    setClicked({ type, batchIdx, rowIdx });
-    setRouteSelectOpen(true);
-  }
-  function handleChooseRoute(idx) {
-    setSelectedRoute(MARSHRUTS[idx]);
-    setRouteSelectOpen(false);
-    setShowStations(true);
-  }
-  function handleStationsClose() {
-    if (selectedRoute && clicked) {
-      if (clicked.type === 'main') {
-        setMainRows(prev =>
-          prev.map((row, idx) =>
-            idx === clicked.rowIdx
-              ? { ...row, cell: selectedRoute.id === 1 ? "МЛМ-1" : "МЛМ-2" }
-              : row
-          )
-        );
-      }
-    }
-    setShowStations(false);
-    setSelectedRoute(null);
-    setClicked(null);
-  }
-
-  useEffect(() => {
-    if (!taskId) return;
-    setOrders(prevOrders =>
-      prevOrders.map(order => ({
-        ...order,
-        subOrders: order.subOrders.map(sub =>
-          sub.id === taskId
-            ? { ...sub, progress: calcSubOrderProgress(mainRows, uploadedBatches) }
-            : sub
-        ),
-      }))
-    );
-  }, [mainRows, uploadedBatches, taskId, setOrders]);
-
-  // --- Рендер ---
-  if (!project || !subOrder) {
-    return (
-      <div className="min-h-screen bg-[#262537] text-white flex flex-col justify-center items-center">
-        <div className="mb-4 text-2xl">Заказ не найден</div>
-        <button
-          onClick={() => navigate(-1)}
-          className="underline text-violet-400 hover:text-violet-300"
-        >
-          Назад
-        </button>
-      </div>
-    );
-  }
+  if (loading) return (
+    <div className="min-h-screen bg-[#262537] text-white flex flex-col justify-center items-center">
+      <div className="mb-4 text-2xl">Загрузка...</div>
+    </div>
+  );
+  if (!project || !subOrder) return (
+    <div className="min-h-screen bg-[#262537] text-white flex flex-col justify-center items-center">
+      <div className="mb-4 text-2xl">Заказ не найден</div>
+      <button onClick={() => navigate(-1)}
+        className="underline text-violet-400 hover:text-violet-300">Назад</button>
+    </div>
+  );
 
   return (
-    <div className="min-h-screen w-screen bg-[#262537] font-['Inter'] flex flex-row" style={{ userSelect: dragGlobal.active ? 'none' : 'auto' }}>
-      <Sidebar navOpen={navOpen} setNavOpen={setNavOpen} 
-      progressPercent={subOrder.progress || 0} />
-      <main className="flex-1 min-h-screen pl-0 md:pl-3 py-8 bg-gradient-to-br from-[#292d3e] via-[#23283b] to-[#23283b] flex flex-col">
+    <div className="min-h-screen w-screen bg-[#262537] font-['Inter'] flex flex-row" style={{ userSelect: dragGlobal.active ? "none" : "auto" }}>
+      <Sidebar navOpen={false} setNavOpen={() => {}} progressPercent={subOrder.progress || 0} />
+      <main className="flex-1 min-h-screen pl-0 md:pl-3 py-8 bg-gradient-to-br from-[#292d3e] via-[#23283b] to-[#23283b] flex flex-col relative">
         <div className="w-full flex flex-row items-center gap-8 px-8 mb-6">
           <span className="text-stone-300 text-2xl font-light whitespace-nowrap">{subOrder.product}</span>
           <span className="text-white text-base md:text-lg">Заказ <b>№ {subOrder.id}</b></span>
           <span className="text-white text-base md:text-lg">Проект <b>№ {project.id}</b></span>
         </div>
-        <div className="bg-[#2B2F3A] rounded-xl shadow-xl px-1 md:px-4 py-2 overflow-x-auto mx-4" style={{ minHeight: 480 }}>
-          {mainRows.length > 0 ? (
-            <table className="min-w-[900px] w-full table-fixed border-separate border-spacing-0">
-              <thead>
-                <tr>
-                  {columns.map((col, colIdx) => (
-                    <th
-                      key={col.key}
-                      className={
-                        `px-2 py-3 border-b border-gray-700 bg-[#23293B] text-white text-sm font-semibold text-center whitespace-nowrap ` +
-                        col.className
-                      }
-                      style={{
-                        width: col.width,
-                        cursor: "move",
-                        opacity: draggedColIdx === colIdx ? 0.65 : 1,
-                        border: draggedColIdx === colIdx ? "2px solid #c7c754" : undefined,
-                        transition: "border 0.1s"
-                      }}
-                      draggable
-                      onDragStart={() => onColDragStart(colIdx)}
-                      onDragOver={e => onColDragOver(colIdx, e)}
-                      onDrop={() => onColDrop(colIdx)}
-                      onDragEnd={() => setDraggedColIdx(null)}
-                    >
-                      {col.title}
-                    </th>
-                  ))}
-                </tr>
-              </thead>
-              <tbody>
-                {mainRows.map((row, idx) => {
-                  const ready = String(row.made) === String(row.count) && row.count !== "";
-                  return (
-                    <tr
-                      key={"main-" + idx}
-                      className="hover:bg-[#353a45] transition"
-                      onMouseMove={() => handleGlobalDragOver('main', null, idx)}
-                    >
-                      {columns.map((col, colIdx) => (
-                        <td
+        <div className="flex flex-col gap-8 mx-4">
+          {uploadedBatches && uploadedBatches.length > 0 ? (
+            uploadedBatches.map((batch, bidx) => (
+              <div key={batch.id || bidx} className="bg-[#2B2F3A] rounded-xl shadow-xl p-3 mb-4">
+                <div className="flex flex-row justify-between items-center mb-2">
+                  <span className="text-sm text-violet-300">
+                    Загружено: <b>{batch.uploaded_at && batch.uploaded_at.slice(0,16).replace('T',' ')}</b>
+                  </span>
+                  <span className="text-sm text-stone-400">Пользователь: <b>{batch.uploaded_by}</b></span>
+                </div>
+                <table className="min-w-[900px] w-full table-fixed border-separate border-spacing-0">
+                  <thead>
+                    <tr>
+                      {columns.map((col, idx) => (
+                        <th
                           key={col.key}
-                          className={`py-2 px-2 border-b border-gray-700 text-white ${col.className}`}
-                          style={{ width: col.width }}
+                          className={`px-2 py-3 border-b border-gray-700 bg-[#23293B] text-white text-sm font-semibold text-center whitespace-nowrap ${col.className} ${dragColIdx === idx ? 'bg-violet-900' : ''}`}
+                          style={{ width: col.width, cursor: "grab" }}
+                          draggable
+                          onDragStart={() => onColDragStart(idx)}
+                          onDragOver={e => onColDragOver(idx, e)}
+                          onDrop={() => onColDrop(idx)}
+                          onDragEnd={onColDragEnd}
+                          title="Перетащите столбец"
                         >
-                          {typeof col.render === "function"
-                            ? col.render(
-                                row,
-                                idx,
-                                ready,
-                                handleRowEditMain,
-                                handleCellClick,
-                                isGlobalDragHighlighted,
-                                dragGlobal,
-                                navigate
-                              )
-                            : row[col.key]}
-                        </td>
+                          {col.title}
+                        </th>
                       ))}
                     </tr>
-                  );
-                })}
-              </tbody>
-            </table>
+                  </thead>
+                  <tbody className="text-white">
+                    {batch.rows.map((row, idx) => {
+                      const rowData = tableRows[row.id] || row;
+                      const ready = String(rowData.made) === String(rowData.count) && rowData.count !== "";
+                      const createdOrderNumber = createdRows[row.id] || rowData.taskId;
+                      const isSelected = selectedRows.includes(row.id);
+
+                      return (
+                        <tr
+                          key={"batch-" + batch.id + "-" + idx}
+                          className={"hover:bg-[#353a45] transition"}
+                        >
+                          {columns.map((col) => {
+                            if (col.key === "made") {
+                              return (
+                                <td key={col.key} className={col.className}>
+                                  <input
+                                    type="number"
+                                    min="0"
+                                    step="1"
+                                    className="w-16 bg-transparent border-b border-violet-400 text-white text-center outline-none"
+                                    value={rowData.made ?? ""}
+                                    onChange={e =>
+                                      handleCellEdit(row.id, "made", e.target.value.replace(/[^0-9]/g, ""))
+                                    }
+                                    placeholder=""
+                                    disabled={ready}
+                                  />
+                                </td>
+                              );
+                            }
+                            if (col.key === "cell") {
+                              return (
+                                <td
+                                  key={col.key}
+                                  className={col.className + " relative"}
+                                  onMouseDown={e =>
+                                    rowData.cell !== "-" &&
+                                    handleGlobalDragStart(batch.rows, idx, rowData.cell, e)
+                                  }
+                                  onMouseEnter={() => dragGlobal.active && handleGlobalDragOver(idx)}
+                                >
+                                  <div
+                                    className={
+                                      "underline cursor-pointer relative group py-2 px-2 select-none" +
+                                      (dragGlobal.active && isGlobalDragHighlighted(idx)
+                                        ? " bg-violet-900/60"
+                                        : "")
+                                    }
+                                    onClick={() => handleCellClick(row.id)}
+                                  >
+                                    {rowData.cell}
+                                    {rowData.cell !== "-" && (
+                                      <span
+                                        className="absolute right-1 bottom-1 w-4 h-4 rounded bg-violet-600 flex items-center justify-center text-xs text-white shadow group-hover:scale-110 group-hover:bg-violet-500 cursor-row-resize select-none"
+                                        style={{
+                                          cursor: "ns-resize",
+                                          border: "2px solid #fff",
+                                          fontWeight: "bold",
+                                          fontSize: "12px",
+                                          zIndex: 10,
+                                        }}
+                                        title="Протянуть вниз (drag-and-drop)"
+                                      >↡</span>
+                                    )}
+                                  </div>
+                                </td>
+                              );
+                            }
+                            if (col.key === "status") {
+                              return (
+                                <td key={col.key} className={col.className}>
+                                  <StatusCell
+                                    value={ready ? "Готово" : (rowData.status || "")}
+                                    onChange={e => handleCellEdit(row.id, "status", e.target.value)}
+                                    disabled={ready}
+                                  />
+                                </td>
+                              );
+                            }
+                            if (col.key === "taskId") {
+                              // Показываем taskId если есть (приоритетнее "createdRows")
+                              if (createdOrderNumber) {
+                                return (
+                                  <td key={col.key} className={col.className} style={{ padding: 0 }}>
+                                    <div
+                                      className="w-full flex items-center justify-center text-base font-bold text-emerald-400"
+                                      style={{ height: 42 }}
+                                    >
+                                      {createdOrderNumber}
+                                    </div>
+                                  </td>
+                                );
+                              }
+                              // Если не выбран - рисуем ячейку для выделения
+                              return (
+                                <td key={col.key} className={col.className} style={{ padding: 0 }}>
+                                  <div
+                                    className={
+                                      "w-full h-full select-none cursor-pointer flex items-center px-2 py-2 transition rounded justify-center " +
+                                      (isSelected
+                                        ? "bg-violet-500 text-white shadow-lg ring-2 ring-violet-400"
+                                        : "bg-[#23283b] hover:bg-violet-900/50 text-indigo-200")
+                                    }
+                                    style={{ width: "100%", height: 42 }}
+                                    onClick={e => {
+                                      e.stopPropagation();
+                                      toggleRowSelected(row.id);
+                                    }}
+                                  >
+                                    {!isSelected && "Добавить задание"}
+                                    {isSelected && <span className="font-semibold">Выбрано</span>}
+                                  </div>
+                                </td>
+                              );
+                            }
+                            return (
+                              <td key={col.key} className={col.className}>{rowData[col.key]}</td>
+                            );
+                          })}
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
+            ))
           ) : (
             <div className="text-gray-400 text-center py-24">
               Для этого заказа не загружена спецификация. Загрузите файл для отображения данных.
@@ -538,7 +565,54 @@ export default function OrderTaskPage() {
         >
           Загрузить спецификацию
         </button>
-        {/* --- Модалка выбора маршрута --- */}
+
+        {/* Кнопка и модалка для создания задания */}
+        {selectedRows.length > 0 && (
+          <div className="fixed bottom-10 left-1/2 -translate-x-1/2 z-50 flex gap-4">
+            <button
+              onClick={() => setShowOrderDialog(true)}
+              className="px-6 py-3 bg-emerald-500 rounded-2xl text-lg font-bold text-white shadow-xl hover:bg-emerald-600"
+            >
+              Создать задание ({selectedRows.length})
+            </button>
+            <button
+              onClick={resetOrderSelection}
+              className="px-4 py-2 bg-gray-500 rounded-xl text-white hover:bg-gray-700"
+            >Сбросить</button>
+          </div>
+        )}
+
+        {showOrderDialog && (
+          <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center">
+            <div className="bg-[#23283b] rounded-2xl shadow-2xl p-8 w-[420px] flex flex-col gap-5 border border-violet-700">
+              <div className="text-white text-xl font-semibold">Создание задания</div>
+              <div className="text-slate-300 text-base">Номер будет присвоен автоматически</div>
+              <textarea
+                rows={4}
+                className="w-full rounded bg-[#23293b] border border-violet-700 p-2 text-white"
+                placeholder="Описание задания"
+                value={orderDesc}
+                onChange={e => setOrderDesc(e.target.value)}
+                disabled={creatingOrder}
+              />
+              {orderError && <div className="text-red-500">{orderError}</div>}
+              <div className="flex gap-4">
+                <button
+                  className="bg-emerald-600 hover:bg-emerald-700 text-white rounded px-6 py-2 font-semibold"
+                  onClick={handleCreateOrder}
+                  disabled={creatingOrder}
+                >Создать</button>
+                <button
+                  className="bg-gray-600 hover:bg-gray-700 text-white rounded px-6 py-2"
+                  onClick={resetOrderSelection}
+                  disabled={creatingOrder}
+                >Отмена</button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Модалки выбора маршрута и станций */}
         {routeSelectOpen && (
           <div className="fixed inset-0 bg-black/70 z-40 flex items-center justify-center">
             <div className="bg-[#23283b] rounded-2xl p-7 flex flex-col w-[430px] gap-3 shadow-xl border border-violet-700">
@@ -561,7 +635,6 @@ export default function OrderTaskPage() {
             </div>
           </div>
         )}
-        {/* --- Модалка детализации маршрута (станции) --- */}
         {showStations && selectedRoute && (
           <div className="fixed inset-0 bg-black/70 z-50 flex items-center justify-center">
             <div className="bg-[#23283b] rounded-2xl p-8 w-[490px] flex flex-col gap-5 shadow-2xl border border-violet-800">

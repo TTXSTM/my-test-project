@@ -31,11 +31,12 @@ export default function ProjectPage() {
   const { id } = useParams();
   const navigate = useNavigate();
 
-  // Данные проекта и подзаказов из базы
+  // Состояния данных
   const [project, setProject] = useState(null);
   const [subOrders, setSubOrders] = useState([]);
   const [loading, setLoading] = useState(true);
 
+  // Модалка добавления подзаказа
   const [showCreateSubOrder, setShowCreateSubOrder] = useState(false);
   const [newSubOrder, setNewSubOrder] = useState({
     product: "",
@@ -45,14 +46,16 @@ export default function ProjectPage() {
     executors: "",
   });
 
-  // Загрузка проекта и подзаказов при монтировании
+  // Загрузка проекта и подзаказов
   useEffect(() => {
     async function fetchData() {
       setLoading(true);
-      // Получаем все проекты (или можно отдельный по id, если есть API)
+      // Получаем проект по id (оптимально добавить отдельный endpoint /api/projects/:id)
       const projRes = await fetch(API_PROJECTS);
       const projects = await projRes.json();
-      const found = projects.find((p) => String(p.id) === String(id));
+      const found = projects.find(
+        (p) => String(p.id).trim() === String(id).trim()
+      );
       setProject(found);
 
       if (found) {
@@ -66,13 +69,16 @@ export default function ProjectPage() {
     fetchData();
   }, [id]);
 
-  // Добавление подзаказа с записью в базу (id не передаём!)
+  // Добавление подзаказа
   async function handleCreateSubOrder(e) {
     e.preventDefault();
     try {
       const body = {
-        ...newSubOrder,
         project_id: id,
+        product: newSubOrder.product,
+        startDate: newSubOrder.startDate,
+        deadline: newSubOrder.deadline,
+        responsible: newSubOrder.responsible,
         progress: 0,
       };
       const res = await fetch(API_SUBORDERS, {
@@ -82,7 +88,7 @@ export default function ProjectPage() {
       });
       if (!res.ok) throw new Error("Ошибка записи подзаказа!");
 
-      // Перезагружаем список подзаказов
+      // Перезагрузка подзаказов
       const subsRes = await fetch(API_SUBORDERS + "/" + id);
       setSubOrders(await subsRes.json());
 
@@ -121,7 +127,7 @@ export default function ProjectPage() {
     );
   }
 
-  // --- ПРОГРЕСС проекта по подзаказам
+  // Расчет прогресса проекта по подзаказам
   const projectProgress =
     subOrders && subOrders.length
       ? Math.round(
