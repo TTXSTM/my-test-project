@@ -3,7 +3,8 @@ import { useOrders } from "../OrdersContext";
 import { Link, useNavigate } from "react-router-dom";
 import Sidebar from "../Sidebar";
 
-const API_URL = "http://localhost:3001/api/projects";
+// Используй свой сервер и порт!
+const API_URL = "http://85.198.82.194:3001/api/projects";
 
 const getProgressGradient = () =>
   "linear-gradient(90deg, #13d110 0%, #ffe600 55%, #d90000 100%)";
@@ -17,10 +18,21 @@ function calcProjectProgress(subOrders = []) {
 function calcAllProjectsProgress(orders = []) {
   if (!orders.length) return 0;
   const sum = orders.reduce(
-    (acc, order) => acc + calcProjectProgress(order.subOrders),
+    (acc, order) => acc + calcProjectProgress(order.subOrders || []),
     0
   );
   return Math.round(sum / orders.length);
+}
+
+// Форматирование даты в dd-mm-yyyy
+function formatDate(dateStr) {
+  if (!dateStr) return "";
+  const d = new Date(dateStr);
+  if (isNaN(d.getTime())) return dateStr;
+  const day = String(d.getDate()).padStart(2, "0");
+  const month = String(d.getMonth() + 1).padStart(2, "0");
+  const year = d.getFullYear();
+  return `${day}-${month}-${year}`;
 }
 
 export default function Dashboard() {
@@ -28,6 +40,7 @@ export default function Dashboard() {
   const [showCreateProject, setShowCreateProject] = useState(false);
   const [openedOrderId, setOpenedOrderId] = useState(null);
   const [loading, setLoading] = useState(true);
+
   const [newOrder, setNewOrder] = useState({
     id: "",
     product: "",
@@ -36,7 +49,6 @@ export default function Dashboard() {
     responsible: "",
     executors: "",
     status: "В работе",
-    subOrders: [],
   });
 
   const [navOpen, setNavOpen] = useState(false);
@@ -55,8 +67,8 @@ export default function Dashboard() {
           subOrders: p.subOrders || [],
         }))
       );
-    } catch {
-      // Можно добавить обработку ошибок, если нужно
+    } catch (e) {
+      console.error(e);
     } finally {
       setLoading(false);
     }
@@ -77,14 +89,13 @@ export default function Dashboard() {
   }, [navOpen, showCreateProject]);
 
   const visibleOrders = (orders || []).filter(
-    (o) => o.id && o.product && o.deadline
+    (o) => o.product && o.deadline
   );
 
   // Создание проекта с повторной загрузкой списка
   const handleCreateProject = async (e) => {
     e.preventDefault();
     if (
-      !newOrder.id ||
       !newOrder.product ||
       !newOrder.startDate ||
       !newOrder.deadline ||
@@ -94,13 +105,21 @@ export default function Dashboard() {
       return;
     }
     try {
+      const body = {
+        id: newOrder.id || undefined,
+        product: newOrder.product,
+        startDate: newOrder.startDate,
+        deadline: newOrder.deadline,
+        responsible: newOrder.responsible,
+        executors: newOrder.executors,
+        status: newOrder.status,
+      };
       const res = await fetch(API_URL, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(newOrder),
+        body: JSON.stringify(body),
       });
       if (!res.ok) throw new Error("Ошибка сохранения!");
-      // После успешного создания перезагружаем список проектов!
       await fetchProjects();
       setShowCreateProject(false);
       setNewOrder({
@@ -111,10 +130,10 @@ export default function Dashboard() {
         responsible: "",
         executors: "",
         status: "В работе",
-        subOrders: [],
       });
     } catch (e) {
       alert("Ошибка при сохранении в базу данных");
+      console.error(e);
     }
   };
 
@@ -139,8 +158,8 @@ export default function Dashboard() {
         </Link>
       </div>
       <div className="flex-[2.2] px-4 py-2">{sub.product}</div>
-      <div className="flex-1 px-4 py-2">{sub.startDate}</div>
-      <div className="flex-1 px-4 py-2">{sub.deadline}</div>
+      <div className="flex-1 px-4 py-2">{formatDate(sub.startDate)}</div>
+      <div className="flex-1 px-4 py-2">{formatDate(sub.deadline)}</div>
       <div className="flex-1 px-4 py-2">{sub.responsible}</div>
       <div className="flex-[1.2] px-4 py-2 flex items-center">
         <div
@@ -177,7 +196,7 @@ export default function Dashboard() {
             <div className="text-white">Загрузка...</div>
           ) : (
             visibleOrders.map((order) => (
-              <div key={order.id} className="space-y-0">
+              <div key={order.id || order.product + order.deadline} className="space-y-0">
                 <div
                   className="flex flex-row w-full rounded-t-2xl overflow-hidden"
                   style={{
@@ -230,10 +249,10 @@ export default function Dashboard() {
                     </div>
                   </div>
                   <div className="flex-1 py-4 px-6 bg-transparent text-white text-base flex items-center">
-                    {order.startDate}
+                    {formatDate(order.startDate)}
                   </div>
                   <div className="flex-1 py-4 px-6 bg-transparent text-white text-base flex items-center">
-                    {order.deadline}
+                    {formatDate(order.deadline)}
                   </div>
                   <div className="flex-1 py-4 px-6 bg-transparent text-white text-base flex items-center">
                     {order.responsible}
@@ -311,13 +330,16 @@ export default function Dashboard() {
               borderBottomLeftRadius: "24px",
             }}
           >
-            <div className="text-center text-white font-semibold text-base tracking-wide mb-2">Номер заказа</div>
-            <div className="flex justify-center mb-3">
+            <div className="text-center text-white font-semibold text-base tracking-wide mb-2 mt-3">
+              Номер проекта (опционально)
+            </div>
+            <div className="flex mb-6">
               <input
-                className="rounded-lg px-4 py-2 bg-[#292648]/60 text-white border border-[#83799b] focus:outline-none w-60 text-center shadow"
+                type="number"
+                className="rounded-lg px-4 py-2 bg-[#292648]/60 text-white border border-[#83799b] focus:outline-none w-full shadow"
                 value={newOrder.id}
                 onChange={(e) => setNewOrder((o) => ({ ...o, id: e.target.value }))}
-                required
+                placeholder="Оставьте пустым для автогенерации"
               />
             </div>
 

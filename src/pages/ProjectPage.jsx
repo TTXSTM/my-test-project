@@ -5,6 +5,17 @@ import Sidebar from "../Sidebar";
 const getProgressGradient = () =>
   "linear-gradient(90deg, #13d110 0%, #ffe600 55%, #d90000 100%)";
 
+// Функция для форматирования даты
+function formatDate(dateString) {
+  if (!dateString) return "";
+  const d = new Date(dateString);
+  if (isNaN(d.getTime())) return dateString;
+  const day = String(d.getDate()).padStart(2, "0");
+  const month = String(d.getMonth() + 1).padStart(2, "0");
+  const year = d.getFullYear();
+  return `${day}-${month}-${year}`;
+}
+
 function ProgressBar({ percent }) {
   return (
     <div
@@ -24,8 +35,8 @@ function ProgressBar({ percent }) {
   );
 }
 
-const API_PROJECTS = "http://localhost:3001/api/projects";
-const API_SUBORDERS = "http://localhost:3001/api/suborders";
+const API_PROJECTS = "http://85.198.82.194:3001/api/projects";
+const API_SUBORDERS = "http://85.198.82.194:3001/api/suborders";
 
 export default function ProjectPage() {
   const { id } = useParams();
@@ -314,10 +325,10 @@ export default function ProjectPage() {
                 </div>
               </div>
               <div className="flex-1 py-4 px-6 bg-transparent text-white text-base flex items-center">
-                {project.startDate}
+                {formatDate(project.startDate)}
               </div>
               <div className="flex-1 py-4 px-6 bg-transparent text-white text-base flex items-center">
-                {project.deadline}
+                {formatDate(project.deadline)}
               </div>
               <div className="flex-1 py-4 px-6 bg-transparent text-white text-base flex items-center">
                 {project.responsible}
@@ -428,7 +439,7 @@ export default function ProjectPage() {
                       }}
                       title={sub.startDate}
                     >
-                      {sub.startDate}
+                      {formatDate(sub.startDate)}
                     </div>
                     <div
                       className="flex-1 py-2 px-3 text-center text-black"
@@ -439,7 +450,7 @@ export default function ProjectPage() {
                       }}
                       title={sub.deadline}
                     >
-                      {sub.deadline}
+                      {formatDate(sub.deadline)}
                     </div>
                     <div
                       className="flex-1 py-2 px-3 text-center text-black"

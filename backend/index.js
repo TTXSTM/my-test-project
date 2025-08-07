@@ -6,16 +6,46 @@ const app = express();
 app.use(cors());
 app.use(express.json({ limit: "20mb" }));
 
-const db = mysql.createConnection({
+const db = mysql.createPool({
   host: "localhost",
   user: "projectuser",
   password: "MySuperPass123!",
   database: "projectdb",
+  waitForConnections: true,
+  connectionLimit: 10,
+  queueLimit: 0
 });
 
-// ======= PROJECTS =======
+// ========================
+//    СПРАВОЧНЫЕ МАРШРУТЫ
+// ========================
+const ROUTES = [
+  {
+    id: 1,
+    name: "Маршрут листового металла № 1",
+    stations: [
+      'Станция 1 - Лазер HFR "С1-Л"',
+      'Станция 3 - Участок финишной зачистки "С3-фЗ"',
+      'Станция 4 - Гибочный станок FinnPower "ГБFP"',
+      'Станция 5 - Слесарный оборонный участок ССБ',
+      'Станция 7 - Участок покраски "УП"',
+    ]
+  },
+  {
+    id: 2,
+    name: "Маршрут листового металла № 2",
+    stations: [
+      'Станция 2 - Лазер AFR "С2-Л"',
+      'Станция 4 - Гибочный станок FinnPower "ГБFP"',
+      'Станция 6 - Сварочный участок Пост 1 "СВП1"',
+      'Станция 7 - Участок покраски "УП"',
+    ]
+  }
+];
 
-// Получить все проекты
+// ========================
+//        ПРОЕКТЫ
+// ========================
 app.get("/api/projects", (req, res) => {
   db.query("SELECT * FROM projects", (err, results) => {
     if (err) return res.status(500).json({ error: err });
@@ -23,30 +53,34 @@ app.get("/api/projects", (req, res) => {
   });
 });
 
-// Добавить проект
-app.post("/api/projects", (req, res) => {
-  const { product, startDate, deadline, responsible, status, executors } = req.body;
-  db.query(
-    'INSERT INTO projects (product, startDate, deadline, responsible, status, executors) VALUES (?, ?, ?, ?, ?, ?)',
-    [product, startDate, deadline, responsible, status, executors || ""],
-    (err, results) => {
-      if (err) return res.status(500).json({ error: err.message });
-      res.json({ success: true, id: results.insertId });
+app.post('/api/projects', (req, res) => {
+  const { id, product, startDate, deadline, responsible, status, executors } = req.body;
+
+  if (!id) {
+    return res.status(400).json({ error: "Поле id обязательно!" });
+  }
+
+  db.query("SELECT id FROM projects WHERE id = ?", [id], (err, rows) => {
+    if (err) return res.status(500).json({ error: err.message });
+
+    if (rows.length > 0) {
+      return res.status(400).json({ error: "Проект с таким id уже существует!" });
     }
-  );
-});
 
-// ======= SUBORDERS =======
-
-// Получить все подзаказы
-app.get("/api/suborders", (req, res) => {
-  db.query("SELECT * FROM suborders", (err, results) => {
-    if (err) return res.status(500).json({ error: err });
-    res.json(results);
+    db.query(
+      'INSERT INTO projects (id, product, startDate, deadline, responsible, status, executors) VALUES (?, ?, ?, ?, ?, ?, ?)',
+      [id, product, startDate, deadline, responsible, status, executors || ""],
+      (err, results) => {
+        if (err) return res.status(500).json({ error: err.message });
+        res.json({ success: true, id: id });
+      }
+    );
   });
 });
 
-// Получить подзаказы по проекту
+// ========================
+//        ПОДЗАКАЗЫ
+// ========================
 app.get("/api/suborders/:project_id", (req, res) => {
   db.query(
     "SELECT * FROM suborders WHERE project_id = ?",
@@ -58,7 +92,6 @@ app.get("/api/suborders/:project_id", (req, res) => {
   );
 });
 
-// Получить ОДИН подзаказ по id
 app.get("/api/suborder/:id", (req, res) => {
   db.query(
     "SELECT * FROM suborders WHERE id = ?",
@@ -70,68 +103,53 @@ app.get("/api/suborder/:id", (req, res) => {
   );
 });
 
-// Добавить подзаказ
+app.get("/api/suborders", (req, res) => {
+  db.query("SELECT * FROM suborders", (err, results) => {
+    if (err) return res.status(500).json({ error: err });
+    res.json(results);
+  });
+});
+
+// --- ГЕНЕРАЦИЯ НОМЕРА ЗАКАЗА и id ---
 app.post("/api/suborders", (req, res) => {
   const { project_id, product, startDate, deadline, responsible, progress } = req.body;
-  db.query(
-    "INSERT INTO suborders (project_id, product, startDate, deadline, responsible, progress) VALUES (?, ?, ?, ?, ?, ?)",
-    [project_id, product, startDate, deadline, responsible, progress || 0],
-    (err, results) => {
-      if (err) return res.status(500).json({ error: err });
-      res.json({ success: true, id: results.insertId });
-    }
-  );
-});
-
-// ======= ORDERS =======
-
-// Получить задания по проекту и подзаказу (для определения номера)
-app.get("/api/orders", (req, res) => {
-  const { project_id, order_id } = req.query;
-  if (!project_id || !order_id) {
-    return res.status(400).json({ error: "project_id и order_id обязательны" });
-  }
-  db.query(
-    "SELECT * FROM orders WHERE project_id = ? AND order_id = ? ORDER BY seq_num ASC",
-    [project_id, order_id],
-    (err, results) => {
-      if (err) return res.status(500).json({ error: err });
-      res.json(results);
-    }
-  );
-});
-
-// Добавить задание (и присвоить номер задания строкам спецификации)
-app.post("/api/orders", (req, res) => {
-  const { project_id, order_id, seq_num, order_number, description, row_ids } = req.body;
 
   db.query(
-    "INSERT INTO orders (project_id, order_id, seq_num, order_number, description) VALUES (?, ?, ?, ?, ?)",
-    [project_id, order_id, seq_num, order_number, description],
-    (err, results) => {
+    "SELECT COUNT(*) AS cnt FROM suborders WHERE project_id = ?",
+    [project_id],
+    (err, result) => {
       if (err) return res.status(500).json({ error: err.message });
 
-      // Обновить taskId для выбранных строк спецификации
-      if (Array.isArray(row_ids) && row_ids.length > 0) {
-        const sql = `UPDATE spec_rows SET taskId = ? WHERE id IN (${row_ids.map(() => '?').join(',')})`;
-        db.query(sql, [order_number, ...row_ids], (err2) => {
+      const nextIndex = result[0].cnt + 1;
+      const subOrderId = `${project_id}-${nextIndex}`; // id и order_number
+
+      db.query(
+        "INSERT INTO suborders (id, order_number, project_id, product, startDate, deadline, responsible, progress) VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
+        [
+          subOrderId,        // id
+          subOrderId,        // order_number
+          project_id,
+          product,
+          startDate,
+          deadline,
+          responsible,
+          progress || 0
+        ],
+        (err2, results) => {
           if (err2) return res.status(500).json({ error: err2.message });
-          res.json({ success: true, id: results.insertId, order_number });
-        });
-      } else {
-        res.json({ success: true, id: results.insertId, order_number });
-      }
+          res.json({ success: true, id: subOrderId, order_number: subOrderId });
+        }
+      );
     }
   );
 });
 
-// ======= SPEC BATCHES / ROWS =======
-
-// Загрузка новой спецификации
+// ========================
+//      СПЕЦИФИКАЦИЯ
+// ========================
 app.post("/api/spec/:suborder_id", (req, res) => {
   const { rows, uploaded_by } = req.body;
   const suborder_id = req.params.suborder_id;
-
   db.query(
     "INSERT INTO spec_batches (suborder_id, uploaded_by) VALUES (?, ?)",
     [suborder_id, uploaded_by || "Аноним"],
@@ -163,7 +181,6 @@ app.post("/api/spec/:suborder_id", (req, res) => {
   );
 });
 
-// Получить спецификацию для подзаказа
 app.get("/api/spec/:suborder_id", (req, res) => {
   db.query(
     "SELECT * FROM spec_batches WHERE suborder_id = ? ORDER BY uploaded_at ASC",
@@ -172,6 +189,7 @@ app.get("/api/spec/:suborder_id", (req, res) => {
       if (err) return res.status(500).json({ error: err.message });
       if (!batches.length) return res.json([]);
       const batchIds = batches.map(b => b.id);
+      if (batchIds.length === 0) return res.json([]);
       db.query(
         `SELECT * FROM spec_rows WHERE batch_id IN (${batchIds.map(id => db.escape(id)).join(",")})`,
         (err2, rows) => {
@@ -187,7 +205,6 @@ app.get("/api/spec/:suborder_id", (req, res) => {
   );
 });
 
-// PATCH — обновить строку спецификации по id
 app.patch("/api/specrow/:id", (req, res) => {
   const { made, cell, status } = req.body;
   db.query(
@@ -196,6 +213,53 @@ app.patch("/api/specrow/:id", (req, res) => {
     (err, result) => {
       if (err) return res.status(500).json({ error: err.message });
       res.json({ success: true });
+    }
+  );
+});
+
+// ========================
+//        ЗАДАНИЯ
+// ========================
+app.get("/api/orders", (req, res) => {
+  const { project_id, order_id } = req.query;
+  if (!project_id || !order_id) return res.status(400).json({ error: "Missing project_id or order_id" });
+  db.query(
+    "SELECT * FROM orders WHERE project_id = ? AND order_id = ?",
+    [project_id, order_id],
+    (err, results) => {
+      if (err) return res.status(500).json({ error: err.message });
+      res.json(results);
+    }
+  );
+});
+
+app.post("/api/orders", (req, res) => {
+  const { project_id, order_id, seq_num, order_number, description, row_ids, route, station, product, priority } = req.body;
+  db.query(
+    `INSERT INTO orders (project_id, order_id, seq_num, order_number, description, route, station, product, priority, status)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 'В работе')`,
+    [project_id, order_id, seq_num, order_number, description, route, station, product, priority],
+    (err, result) => {
+      if (err) return res.status(500).json({ error: err.message });
+      if (row_ids?.length) {
+        db.query(
+          `UPDATE spec_rows SET taskId = ? WHERE id IN (${row_ids.map(() => '?').join(',')})`,
+          [order_number, ...row_ids],
+          () => res.json({ success: true })
+        );
+      } else {
+        res.json({ success: true });
+      }
+    }
+  );
+});
+
+app.get("/api/dispatcher-tasks", (req, res) => {
+  db.query(
+    "SELECT * FROM orders WHERE status != 'Готов' AND status != 'Закрыт'",
+    (err, results) => {
+      if (err) return res.status(500).json({ error: err.message });
+      res.json(results);
     }
   );
 });

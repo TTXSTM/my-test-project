@@ -11,7 +11,7 @@ const initialTouched = {
   address: false,
 };
 
-const API_PROJECTS = "http://localhost:3001/api/projects";
+const API_PROJECTS = "http://85.198.82.194:3001/api/projects";
 
 const OrderPage = () => {
   const navigate = useNavigate();

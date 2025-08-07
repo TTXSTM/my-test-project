@@ -11,17 +11,17 @@ const API_ORDERS = "http://85.198.82.194:3001/api/orders";
 
 const MARSHRUTS = [
   { id: 1, name: "Маршрут листового металла № 1", stations: [
-    'Станция 1 - Лазер HFR “С1-Л”',
-    'Станция 3 - Участок финишной зачистки “С3-фЗ”',
-    'Станция 4 - Гибочный станок FinnPower “ГБFP”',
+    'Станция 1 - Лазер HFR "С1-Л"',
+    'Станция 3 - Участок финишной зачистки "С3-фЗ"',
+    'Станция 4 - Гибочный станок FinnPower "ГБFP"',
     'Станция 5 - Слесарный оборонный участок ССБ',
-    'Станция 7 - Участок покраски “УП”',
+    'Станция 7 - Участок покраски "УП"',
   ]},
   { id: 2, name: "Маршрут листового металла № 2", stations: [
-    'Станция 2 - Лазер AFR “С2-Л”',
-    'Станция 4 - Гибочный станок FinnPower “ГБFP”',
-    'Станция 6 - Сварочный участок Пост 1 “СВП1”',
-    'Станция 7 - Участок покраски “УП”',
+    'Станция 2 - Лазер AFR "С2-Л"',
+    'Станция 4 - Гибочный станок FinnPower "ГБFP"',
+    'Станция 6 - Сварочный участок Пост 1 "СВП1"',
+    'Станция 7 - Участок покраски "УП"',
   ]},
 ];
 
@@ -36,6 +36,108 @@ const initialColumns = [
   { key: "status", title: "Статус", className: "text-center", width: 120 },
   { key: "taskId", title: "Задание", className: "text-center", width: 140 },
 ];
+
+// ----- Заголовок с разделённым drag & resize -----
+function ResizableTH({
+  col, idx, columns, setColumns, dragColIdx,
+  onDragStart, onDragOver, onDrop, onDragEnd, children, ...props
+}) {
+  const startXRef = useRef(null);
+  const startWidthRef = useRef(null);
+
+  function onResizeMouseDown(e) {
+    e.stopPropagation();
+    startXRef.current = e.clientX;
+    startWidthRef.current = columns[idx].width;
+    document.body.style.cursor = "col-resize";
+    function onMouseMove(e2) {
+      const delta = e2.clientX - startXRef.current;
+      setColumns(cols => {
+        const newCols = [...cols];
+        let newWidth = startWidthRef.current + delta;
+        if (newWidth < 50) newWidth = 50;
+        if (newWidth > 900) newWidth = 900;
+        newCols[idx] = { ...newCols[idx], width: newWidth };
+        localStorage.setItem(
+          "orderTaskColumns",
+          JSON.stringify(newCols.map(col => ({ key: col.key, width: col.width })))
+        );
+        return newCols;
+      });
+    }
+    function onMouseUp() {
+      document.removeEventListener("mousemove", onMouseMove);
+      document.removeEventListener("mouseup", onMouseUp);
+      document.body.style.cursor = "";
+    }
+    document.addEventListener("mousemove", onMouseMove);
+    document.addEventListener("mouseup", onMouseUp);
+  }
+
+  function handleDragStart(e) { if (onDragStart) onDragStart(idx, e); }
+  function handleDragOver(e) { if (onDragOver) onDragOver(idx, e); }
+  function handleDrop(e) { if (onDrop) onDrop(idx, e); }
+  function handleDragEnd(e) { if (onDragEnd) onDragEnd(idx, e); }
+
+  return (
+    <th
+      {...props}
+      style={{
+        ...props.style,
+        position: "relative",
+        width: col.width,
+        minWidth: 50,
+        maxWidth: 900,
+        userSelect: "none",
+        background: dragColIdx === idx ? "#4b2998" : undefined,
+        border: "1px solid #8e8ea0",
+        zIndex: 1,
+        padding: 0,
+      }}
+      className={`border border-[#8e8ea0] bg-[#23293B] text-white text-sm font-semibold text-center whitespace-nowrap select-none`}
+    >
+      <div style={{ display: "flex", alignItems: "center", width: "100%", height: "100%" }}>
+        <span
+          style={{
+            flex: 1,
+            cursor: "grab",
+            textAlign: "center",
+            zIndex: 2,
+            padding: "12px 0",
+            position: "relative",
+            userSelect: "none",
+          }}
+          draggable
+          onDragStart={handleDragStart}
+          onDragOver={handleDragOver}
+          onDrop={handleDrop}
+          onDragEnd={handleDragEnd}
+        >
+          {children}
+        </span>
+        <span
+          onMouseDown={onResizeMouseDown}
+          style={{
+            cursor: "col-resize",
+            userSelect: "none",
+            width: 10,
+            minWidth: 10,
+            maxWidth: 14,
+            height: "100%",
+            position: "absolute",
+            right: 0,
+            top: 0,
+            bottom: 0,
+            zIndex: 5,
+            background: "transparent",
+            display: "inline-block",
+          }}
+          title="Растянуть столбец"
+        />
+      </div>
+    </th>
+  );
+}
 
 function StatusCell({ value, onChange, disabled }) {
   let bg = "#181870", color = "#fff";
@@ -74,21 +176,29 @@ export default function OrderTaskPage() {
   const [uploadedBatches, setUploadedBatches] = useState([]);
   const fileInputRef = useRef();
 
+  // --- Логика колонок, ресайза и перемещения ---
   const [columns, setColumns] = useState(() => {
     try {
       const saved = localStorage.getItem("orderTaskColumns");
       if (saved) {
-        const order = JSON.parse(saved);
-        return order
+        const savedCols = JSON.parse(saved);
+        if (Array.isArray(savedCols) && savedCols.length && typeof savedCols[0] === "object") {
+          return savedCols.map(item => {
+            const found = initialColumns.find(col => col.key === item.key);
+            return found ? { ...found, width: item.width || found.width } : null;
+          }).filter(Boolean).concat(
+            initialColumns.filter(col => !savedCols.some(s => s.key === col.key))
+          );
+        }
+        return saved
           .map(key => initialColumns.find(col => col.key === key))
           .filter(Boolean)
-          .concat(initialColumns.filter(col => !order.includes(col.key)));
+          .concat(initialColumns.filter(col => !saved.includes(col.key)));
       }
     } catch {}
     return initialColumns;
   });
   const [dragColIdx, setDragColIdx] = useState(null);
-  function onColDragStart(idx) { setDragColIdx(idx); }
   function onColDragOver(idx, e) { e.preventDefault(); }
   function onColDrop(idx) {
     if (dragColIdx === null || dragColIdx === idx) return;
@@ -97,33 +207,32 @@ export default function OrderTaskPage() {
     newCols.splice(idx, 0, dragged);
     setColumns(newCols);
     setDragColIdx(null);
-    localStorage.setItem("orderTaskColumns", JSON.stringify(newCols.map(col => col.key)));
+    localStorage.setItem(
+      "orderTaskColumns",
+      JSON.stringify(newCols.map(col => ({ key: col.key, width: col.width })))
+    );
   }
   function onColDragEnd() { setDragColIdx(null); }
 
-  // Состояние таблицы
+  // --- Остальная логика таблицы ---
   const [tableRows, setTableRows] = useState({});
   const [dragGlobal, setDragGlobal] = useState({
     active: false, from: null, to: null, value: null,
   });
 
-  // Для создания задания
   const [createdRows, setCreatedRows] = useState({});
   const [showOrderDialog, setShowOrderDialog] = useState(false);
   const [orderDesc, setOrderDesc] = useState("");
+  const [orderPriority, setOrderPriority] = useState("");
   const [creatingOrder, setCreatingOrder] = useState(false);
   const [orderError, setOrderError] = useState("");
-
-  // Для множественного выбора
   const [selectedRows, setSelectedRows] = useState([]);
 
-  // Маршруты и модалки
   const [routeSelectOpen, setRouteSelectOpen] = useState(false);
   const [selectedRoute, setSelectedRoute] = useState(null);
   const [showStations, setShowStations] = useState(false);
   const [clickedCell, setClickedCell] = useState(null);
 
-  // Загрузка проекта и спецификации
   useEffect(() => {
     async function fetchAll() {
       setLoading(true);
@@ -159,7 +268,6 @@ export default function OrderTaskPage() {
     fetchAll();
   }, [taskId]);
 
-  // Drag fill для cell
   function handleGlobalDragStart(batchRows, rowIdx, value, e) {
     e.stopPropagation();
     setDragGlobal({
@@ -210,7 +318,6 @@ export default function OrderTaskPage() {
     return idx >= start && idx <= end;
   }
 
-  // Мгновенное обновление строки
   async function updateRow(rowId, newFields) {
     setTableRows(prev => ({
       ...prev, [rowId]: { ...prev[rowId], ...newFields },
@@ -222,7 +329,6 @@ export default function OrderTaskPage() {
     });
   }
 
-  // Обработчики редактирования ячеек
   function handleCellEdit(rowId, field, value) {
     let patch = { [field]: value };
     if (field === "made") {
@@ -237,7 +343,6 @@ export default function OrderTaskPage() {
     updateRow(rowId, patch);
   }
 
-  // --- Выделение по клику (множественный выбор) ---
   function toggleRowSelected(rowId) {
     setSelectedRows(selectedRows =>
       selectedRows.includes(rowId)
@@ -246,16 +351,22 @@ export default function OrderTaskPage() {
     );
   }
   function resetOrderSelection() {
-    setSelectedRows([]); setOrderDesc(""); setOrderError(""); setShowOrderDialog(false);
+    setSelectedRows([]);
+    setOrderDesc("");
+    setOrderPriority("");
+    setOrderError("");
+    setShowOrderDialog(false);
+    setSelectedRoute(null);
   }
 
-  // --- Создание задания для выбранных строк ---
   async function handleCreateOrder() {
     if (!orderDesc.trim()) { setOrderError("Введите описание задания"); return; }
     if (selectedRows.length === 0) return;
+    if (!selectedRoute) { setOrderError("Сначала выберите маршрут"); return; }
+    if (!orderPriority) { setOrderError("Укажите приоритет задания"); return; }
+
     setCreatingOrder(true); setOrderError("");
 
-    // 1. Сначала подгружаем актуальные заказы!
     const orders = await fetch(`${API_ORDERS}?project_id=${project.id}&order_id=${subOrder.id}`)
       .then(r => r.json())
       .catch(() => []);
@@ -263,7 +374,6 @@ export default function OrderTaskPage() {
     const seqNum = maxNum + 1;
     const orderNumber = `${project.id}-${subOrder.id}-${seqNum}`;
 
-    // 2. Создаём задание с этим номером (backend обновляет taskId в spec_rows)
     await fetch(API_ORDERS, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -273,23 +383,25 @@ export default function OrderTaskPage() {
         seq_num: seqNum,
         order_number: orderNumber,
         description: orderDesc,
+        priority: orderPriority,
         row_ids: selectedRows,
+        route: selectedRoute.name,
+        station: selectedRoute.stations[0],
       }),
     });
 
-    // 3. После создания обновить UI (без запроса можно так:)
     const newCreated = {};
     selectedRows.forEach(id => newCreated[id] = orderNumber);
     setCreatedRows(prev => ({ ...prev, ...newCreated }));
-
     setShowOrderDialog(false);
     setOrderDesc("");
+    setOrderPriority("");
     setCreatingOrder(false);
     setSelectedRows([]);
+    setSelectedRoute(null);
     alert("Создано задание: " + orderNumber);
   }
 
-  // --- Выбор маршрута через модалку ---
   function handleCellClick(rowId) {
     setClickedCell(rowId); setRouteSelectOpen(true);
   }
@@ -303,10 +415,9 @@ export default function OrderTaskPage() {
         cell: selectedRoute.id === 1 ? "МЛМ-1" : "МЛМ-2",
       });
     }
-    setShowStations(false); setSelectedRoute(null); setClickedCell(null);
+    setShowStations(false); setClickedCell(null);
   }
 
-  // --- XLSX загрузка ---
   function findCol(headerArr, variants) {
     for (let i = 0; i < headerArr.length; ++i) {
       const val = String(headerArr[i]).trim().toLowerCase();
@@ -399,23 +510,24 @@ export default function OrderTaskPage() {
                   </span>
                   <span className="text-sm text-stone-400">Пользователь: <b>{batch.uploaded_by}</b></span>
                 </div>
-                <table className="min-w-[900px] w-full table-fixed border-separate border-spacing-0">
+                <table className="min-w-[900px] w-full table-fixed border-collapse border border-[#8e8ea0]">
                   <thead>
                     <tr>
                       {columns.map((col, idx) => (
-                        <th
+                        <ResizableTH
                           key={col.key}
-                          className={`px-2 py-3 border-b border-gray-700 bg-[#23293B] text-white text-sm font-semibold text-center whitespace-nowrap ${col.className} ${dragColIdx === idx ? 'bg-violet-900' : ''}`}
-                          style={{ width: col.width, cursor: "grab" }}
-                          draggable
-                          onDragStart={() => onColDragStart(idx)}
-                          onDragOver={e => onColDragOver(idx, e)}
-                          onDrop={() => onColDrop(idx)}
+                          col={col}
+                          idx={idx}
+                          columns={columns}
+                          setColumns={setColumns}
+                          dragColIdx={dragColIdx}
+                          onDragStart={(_idx) => setDragColIdx(_idx)}
+                          onDragOver={onColDragOver}
+                          onDrop={onColDrop}
                           onDragEnd={onColDragEnd}
-                          title="Перетащите столбец"
                         >
                           {col.title}
-                        </th>
+                        </ResizableTH>
                       ))}
                     </tr>
                   </thead>
@@ -423,7 +535,7 @@ export default function OrderTaskPage() {
                     {batch.rows.map((row, idx) => {
                       const rowData = tableRows[row.id] || row;
                       const ready = String(rowData.made) === String(rowData.count) && rowData.count !== "";
-                      const createdOrderNumber = createdRows[row.id] || rowData.taskId;
+                      const createdOrderNumber = createdRows[row.id];
                       const isSelected = selectedRows.includes(row.id);
 
                       return (
@@ -434,7 +546,7 @@ export default function OrderTaskPage() {
                           {columns.map((col) => {
                             if (col.key === "made") {
                               return (
-                                <td key={col.key} className={col.className}>
+                                <td key={col.key} className={`border border-[#8e8ea0] ${col.className}`}>
                                   <input
                                     type="number"
                                     min="0"
@@ -454,7 +566,7 @@ export default function OrderTaskPage() {
                               return (
                                 <td
                                   key={col.key}
-                                  className={col.className + " relative"}
+                                  className={`border border-[#8e8ea0] relative ${col.className}`}
                                   onMouseDown={e =>
                                     rowData.cell !== "-" &&
                                     handleGlobalDragStart(batch.rows, idx, rowData.cell, e)
@@ -490,7 +602,7 @@ export default function OrderTaskPage() {
                             }
                             if (col.key === "status") {
                               return (
-                                <td key={col.key} className={col.className}>
+                                <td key={col.key} className={`border border-[#8e8ea0] ${col.className}`}>
                                   <StatusCell
                                     value={ready ? "Готово" : (rowData.status || "")}
                                     onChange={e => handleCellEdit(row.id, "status", e.target.value)}
@@ -500,10 +612,9 @@ export default function OrderTaskPage() {
                               );
                             }
                             if (col.key === "taskId") {
-                              // Показываем taskId если есть (приоритетнее "createdRows")
                               if (createdOrderNumber) {
                                 return (
-                                  <td key={col.key} className={col.className} style={{ padding: 0 }}>
+                                  <td key={col.key} className={`border border-[#8e8ea0] ${col.className}`} style={{ padding: 0 }}>
                                     <div
                                       className="w-full flex items-center justify-center text-base font-bold text-emerald-400"
                                       style={{ height: 42 }}
@@ -513,9 +624,20 @@ export default function OrderTaskPage() {
                                   </td>
                                 );
                               }
-                              // Если не выбран - рисуем ячейку для выделения
+                              if (rowData.taskId) {
+                                return (
+                                  <td key={col.key} className={`border border-[#8e8ea0] ${col.className}`} style={{ padding: 0 }}>
+                                    <div
+                                      className="w-full flex items-center justify-center text-base font-bold text-indigo-300"
+                                      style={{ height: 42 }}
+                                    >
+                                      {rowData.taskId}
+                                    </div>
+                                  </td>
+                                );
+                              }
                               return (
-                                <td key={col.key} className={col.className} style={{ padding: 0 }}>
+                                <td key={col.key} className={`border border-[#8e8ea0] ${col.className}`} style={{ padding: 0 }}>
                                   <div
                                     className={
                                       "w-full h-full select-none cursor-pointer flex items-center px-2 py-2 transition rounded justify-center " +
@@ -536,7 +658,7 @@ export default function OrderTaskPage() {
                               );
                             }
                             return (
-                              <td key={col.key} className={col.className}>{rowData[col.key]}</td>
+                              <td key={col.key} className={`border border-[#8e8ea0] ${col.className}`}>{rowData[col.key]}</td>
                             );
                           })}
                         </tr>
@@ -566,7 +688,6 @@ export default function OrderTaskPage() {
           Загрузить спецификацию
         </button>
 
-        {/* Кнопка и модалка для создания задания */}
         {selectedRows.length > 0 && (
           <div className="fixed bottom-10 left-1/2 -translate-x-1/2 z-50 flex gap-4">
             <button
@@ -587,6 +708,16 @@ export default function OrderTaskPage() {
             <div className="bg-[#23283b] rounded-2xl shadow-2xl p-8 w-[420px] flex flex-col gap-5 border border-violet-700">
               <div className="text-white text-xl font-semibold">Создание задания</div>
               <div className="text-slate-300 text-base">Номер будет присвоен автоматически</div>
+              <input
+                type="number"
+                min="1"
+                max="10"
+                className="w-full rounded bg-[#23293b] border border-violet-700 p-2 text-white mb-2"
+                placeholder="Приоритет задания (например, 1)"
+                value={orderPriority}
+                onChange={e => setOrderPriority(e.target.value)}
+                disabled={creatingOrder}
+              />
               <textarea
                 rows={4}
                 className="w-full rounded bg-[#23293b] border border-violet-700 p-2 text-white"
@@ -596,11 +727,12 @@ export default function OrderTaskPage() {
                 disabled={creatingOrder}
               />
               {orderError && <div className="text-red-500">{orderError}</div>}
+              {!selectedRoute && <div className="text-red-500">Сначала выберите маршрут</div>}
               <div className="flex gap-4">
                 <button
                   className="bg-emerald-600 hover:bg-emerald-700 text-white rounded px-6 py-2 font-semibold"
                   onClick={handleCreateOrder}
-                  disabled={creatingOrder}
+                  disabled={creatingOrder || !selectedRoute}
                 >Создать</button>
                 <button
                   className="bg-gray-600 hover:bg-gray-700 text-white rounded px-6 py-2"
@@ -612,7 +744,6 @@ export default function OrderTaskPage() {
           </div>
         )}
 
-        {/* Модалки выбора маршрута и станций */}
         {routeSelectOpen && (
           <div className="fixed inset-0 bg-black/70 z-40 flex items-center justify-center">
             <div className="bg-[#23283b] rounded-2xl p-7 flex flex-col w-[430px] gap-3 shadow-xl border border-violet-700">
